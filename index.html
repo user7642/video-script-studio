@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Studio - Tạo Video Script & Prompt</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & React DOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* Custom Scrollbar and Animations */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- EMBEDDED CONSTANTS & SAMPLES (data/samples.ts) ---
+    const EMBEDDED_API_KEY = 'AQ.Ab8RN6I677waNgEKJiCEQf5y_Diu4odfkmPQYpaundiMEpmAIw';
+
+    const SAMPLE_IDEAS = [
+      {
+        title: "🎧 Review Tai nghe chống ồn",
+        category: "Sản phẩm",
+        hasProduct: true,
+        description: "Video review tai nghe không dây chống ồn chủ động trong tình huống văn phòng ồn ào và chuyến xe buýt giờ cao điểm.",
+      },
+      {
+        title: "🍰 Tiệm bánh ngọt khởi nghiệp",
+        category: "Câu chuyện",
+        hasProduct: true,
+        description: "Câu chuyện truyền cảm hứng của cô gái trẻ vượt qua thử thách để tự tay làm ra những chiếc bánh ngọt thơm lừng tại tiệm bánh riêng.",
+      },
+      {
+        title: "☕ Vlog Cà phê phong cách Địa Trung Hải",
+        category: "Vlog / LIFESTYLE",
+        hasProduct: false,
+        description: "Một ngày dạo quanh không gian quán cà phê phong cách Santorini ngập tràn ánh nắng, thưởng thức bánh pastry cùng bạn thân.",
+      },
+      {
+        title: "🚀 Phim viễn tưởng Điệp viên thời gian",
+        category: "Phim ngắn AI",
+        hasProduct: false,
+        description: "Phim ngắn kịch tính về điệp viên du hành thời gian trở về quá khứ tìm lại chìa khóa bí mật giải cứu trái đất.",
+      },
+      {
+        title: "🍳 Nồi chiên không dầu 15 phút",
+        category: "Gia dụng",
+        hasProduct: true,
+        description: "Trải nghiệm unbox và nấu bữa tối giòn rụm thơm ngon bằng nồi chiên không dầu thông minh cho gia đình trẻ bận rộn.",
+      },
+    ];
+
+    const VISUAL_STYLES = [
+      { id: "Hiện thực", name: "Hiện thực (Photorealistic)", promptTag: "Photorealistic, highly detailed 8k, natural studio lighting, ultra-realistic texture" },
+      { id: "Điện ảnh 35mm", name: "Điện ảnh (Cinematic 35mm)", promptTag: "Cinematic film still, 35mm lens, moody lighting, shallow depth of field, blockbuster movie aesthetic" },
+      { id: "Hoạt hình 3D", name: "Hoạt hình 3D (Pixar/Disney)", promptTag: "3D animation style, Pixar inspired, smooth textures, vibrant color palette, expressiveness" },
+      { id: "Anime Nhật Bản", name: "Anime / Manga", promptTag: "Makoto Shinkai style anime, detailed hand-drawn aesthetic, dramatic skies, expressive eyes" },
+      { id: "Cyberpunk", name: "Cyberpunk Neon", promptTag: "Cyberpunk aesthetic, glowing neon lights, futuristic city rain reflections, high tech dark visual" },
+      { id: "Chân dung Studio", name: "Chân dung Studio", promptTag: "Professional studio portrait, rembrandt lighting, sharp focus, clean backdrop" },
+      { id: "Vintage 90s", name: "Vintage / Retro 90s", promptTag: "90s nostalgic film photo, subtle film grain, warm muted tones, retro vibe" },
+    ];
+
+    const ASPECT_RATIOS = [
+      { value: "9:16", label: "9:16 (TikTok, Reels, Shorts)", desc: "Khung hình dọc tiêu chuẩn cho video ngắn" },
+      { value: "16:9", label: "16:9 (YouTube, TV, PC)", desc: "Khung hình ngang truyền thống" },
+      { value: "1:1", label: "1:1 (Instagram Square)", desc: "Khung hình vuông cân đối" },
+      { value: "4:3", label: "4:3 (Màn ảnh cổ điển)", desc: "Khung hình vuông chuẩn điện ảnh xưa" },
+    ];
+
+    // --- SESSION API KEY MANAGEMENT ---
+    let globalSessionApiKey = '';
+    function setSessionApiKey(key) {
+      globalSessionApiKey = (key || '').trim();
+    }
+    function getEffectiveApiKey() {
+      if (globalSessionApiKey) return globalSessionApiKey;
+      return localStorage.getItem('gemini_api_key') || EMBEDDED_API_KEY;
+    }
+
+    // --- GEMINI DIRECT CLIENT CALL (lib/clientGemini.ts & server.ts logic) ---
+    async function callGeminiJson(promptText, imageBase64 = null, systemInstructionText = null) {
+      const apiKey = getEffectiveApiKey();
+      if (!apiKey) {
+        throw new Error('Thiếu Gemini API Key. Vui lòng kiểm tra lại cấu hình.');
+      }
+
+      const models = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+      let lastError = null;
+
+      for (const model of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+
+          const parts = [];
+          if (imageBase64) {
+            const match = imageBase64.match(/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64,(.+)$/);
+            if (match) {
+              parts.push({
+                inlineData: {
+                  mimeType: match[1],
+                  data: match[2],
+                },
+              });
+            }
+          }
+          parts.push({ text: promptText });
+
+          const requestBody = {
+            contents: [{ parts }],
+            generationConfig: {
+              temperature: 0.7,
+              responseMimeType: 'application/json',
+            },
+          };
+
+          if (systemInstructionText) {
+            requestBody.systemInstruction = {
+              parts: [{ text: systemInstructionText }],
+            };
+          }
+
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!res.ok) {
+            const errorJson = await res.json().catch(() => ({}));
+            const errMsg = errorJson.error?.message || `Lỗi HTTP ${res.status}`;
+            throw new Error(`[${model}] ${errMsg}`);
+          }
+
+          const data = await res.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!rawText) {
+            throw new Error(`[${model}] Phản hồi từ Gemini không có nội dung văn bản.`);
+          }
+
+          let cleaned = rawText.trim();
+          if (cleaned.startsWith('```json')) {
+            cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
+          } else if (cleaned.startsWith('```')) {
+            cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+          }
+
+          return JSON.parse(cleaned);
+        } catch (err) {
+          lastError = err;
+          console.warn(`Attempt with ${model} failed:`, err);
+        }
+      }
+
+      throw lastError || new Error('Không thể kết nối đến Gemini API. Vui lòng thử lại.');
+    }
+
+    // 1. Generate Script
+    async function generateScriptClient(params) {
+      const { idea, hasProduct, productImage, isRegenerate } = params;
+      const promptText = `
+### DỮ LIỆU ĐẦU VÀO
+- Ý tưởng gốc: "${idea}"
+- Sản phẩm đính kèm: ${hasProduct ? "Có sản phẩm xuất hiện trong video." : "Không có."} ${hasProduct && productImage ? "(Có ảnh sản phẩm)." : ""}
+${isRegenerate ? "- YÊU CẦU LÀM MỚI: Viết cốt truyện & tuyến nhân vật MỚI HOÀN TOÀN so với kịch bản cũ, bám sát ý tưởng gốc." : ""}
+
+### NHIỆM VỤ
+1. Tiêu đề (title): Tên dự án hấp dẫn, ngắn gọn.
+2. Nhân vật (characters): Khai báo danh sách nhân vật (id, name, age, role, appearance [mô tả chi tiết khuôn mặt, dáng người, kiểu tóc, trang phục], personality).
+3. Kịch bản văn xuôi (scriptNarrative): Viết văn bản tường thuật liền mạch bối cảnh, hành động, tâm lý, biểu cảm và lời thoại.
+4. Cảnh phim (scenes): Phân chia kịch bản thành danh sách cảnh (sceneNumber, title, location, charactersPresent, summary, dialogueAndAction).
+
+### CẤU TRÚC JSON ĐẦU RA
+{
+  "title": "Tên dự án",
+  "characters": [
+    {
+      "id": "char_1",
+      "name": "Tên nhân vật",
+      "age": "25",
+      "role": "Vai chính",
+      "appearance": "Mô tả ngoại hình...",
+      "personality": "Tính cách..."
+    }
+  ],
+  "scriptNarrative": "Kịch bản văn xuôi liền mạch...",
+  "scenes": [
+    {
+      "id": "scene_1",
+      "sceneNumber": 1,
+      "title": "Tiêu đề cảnh",
+      "location": "Địa điểm",
+      "charactersPresent": ["Tên nhân vật"],
+      "summary": "Tóm tắt cảnh",
+      "dialogueAndAction": "Lời thoại và hành động"
+    }
+  ]
+}
+`;
+      const result = await callGeminiJson(promptText, productImage);
+      if (result.characters) {
+        result.characters = result.characters.map((c, index) => ({
+          id: c.id || `char_${index + 1}`,
+          name: c.name || `Nhân vật ${index + 1}`,
+          age: c.age || "25 tuổi",
+          role: c.role || "Chính",
+          appearance: c.appearance || "",
+        }));
+      }
+      if (result.scenes) {
+        result.scenes = result.scenes.map((s, index) => ({
+          id: s.id || `scene_${index + 1}`,
+          sceneNumber: s.sceneNumber || index + 1,
+          title: s.title || `Cảnh ${index + 1}`,
+          location: s.location || "Địa điểm",
+          charactersPresent: Array.isArray(s.charactersPresent) ? s.charactersPresent : [],
+          summary: s.summary || "",
+          dialogueAndAction: s.dialogueAndAction || "",
+        }));
+      }
+      return result;
+    }
+
+    // 2. Refine Script
+    async function refineScriptClient(params) {
+      const { currentData, userRequest } = params;
+      const promptText = `
+Kịch bản hiện tại:
+${JSON.stringify(currentData, null, 2)}
+
+Yêu cầu chỉnh sửa:
+"${userRequest}"
+
+Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ nguyên định dạng JSON (title, characters, scriptNarrative, scenes).
+`;
+      const result = await callGeminiJson(promptText);
+      if (result.characters) {
+        result.characters = result.characters.map((c, index) => ({
+          id: c.id || `char_${index + 1}`,
+          name: c.name,
+          age: c.age || "",
+          role: c.role || "",
+          appearance: c.appearance,
+        }));
+      }
+      if (result.scenes) {
+        result.scenes = result.scenes.map((s, index) => ({
+          id: s.id || `scene_${index + 1}`,
+          sceneNumber: s.sceneNumber || index + 1,
+          title: s.title || `Cảnh ${index + 1}`,
+          location: s.location || "",
+          charactersPresent: Array.isArray(s.charactersPresent) ? s.charactersPresent : [],
+          summary: s.summary || "",
+          dialogueAndAction: s.dialogueAndAction || "",
+        }));
+      }
+      return result;
+    }
+
+    // 3. Generate Reference Prompts
+    async function generateReferencePromptsClient(params) {
+      const { characters, scenes, style, aspectRatio } = params;
+      const promptText = `
+### DỮ LIỆU ĐẦU VÀO
+- Danh sách nhân vật: ${JSON.stringify(characters, null, 2)}
+- Danh sách cảnh: ${JSON.stringify(scenes, null, 2)}
+- Phong cách hình ảnh: "${style}"
+- Tỉ lệ khung hình: "${aspectRatio}"
+
+### QUY TẮC BẮT BUỘC
+1. ĐỊNH DẠNG SONG NGỮ ANH - VIỆT:
+   - Bản tiếng Anh (characterReferencePrompt, prompt): Tiếng Anh chuẩn, chi tiết, tối ưu cho AI Image Generator (Midjourney, Flux, Ideogram...).
+   - Bản tiếng Việt (characterReferencePromptVi, promptVi): Dịch sát nghĩa, tự nhiên để hiển thị UI.
+
+2. QUỐC TỊCH / DÂN TỘC NHÂN VẬT:
+   - Nêu rõ quốc tịch/dân tộc trong mô tả ngoại hình (mặc định "Vietnamese / người Việt Nam", trừ khi có chỉ định khác).
+
+3. KHÓA NGOẠI HÌNH TRUNG LẬP (MẪU GỘP & CÁ NHÂN):
+   - Tư thế: Chuẩn "A-pose" toàn thân từ đầu đến chân (standing in A-pose with arms slightly angled down forming an A-shape, full front view, facing camera, full body character reference sheet from head to toe).
+   - Phông nền: Nền trắng trơn studio (plain seamless solid white background, uniform studio lighting, soft shadows).
+   - Cú pháp kết thúc chuỗi tiếng Anh: "A-pose, full body character reference sheet, neutral relaxed expression, no text, no watermark, no logo, no props, plain white background. Style: ${style}, --ar ${aspectRatio}".
+
+4. PROMPT MÔI TRƯỜNG (ENVIRONMENT PROMPTS):
+   - Bối cảnh góc rộng cho từng địa điểm duy nhất. TUYỆT ĐỐI KHÔNG có người hoặc động vật.
+   - Kết thúc chuỗi tiếng Anh bằng: "Style: ${style}, --ar ${aspectRatio}".
+
+### CẤU TRÚC JSON ĐẦU RA
+{
+  "characterReferencePrompt": "Full body character sheet in English ending with A-pose, full body character reference sheet, neutral relaxed expression, no text, no watermark, no logo, no props, plain white background. Style: ${style}, --ar ${aspectRatio}",
+  "characterReferencePromptVi": "Bản dịch tiếng Việt mô tả tất cả nhân vật...",
+  "individualCharacterPrompts": [
+    {
+      "characterId": "char_1",
+      "characterName": "Tên nhân vật",
+      "prompt": "English prompt ending with A-pose, full body, neutral relaxed expression, no text, no watermark, no logo, no props, plain white background. Style: ${style}, --ar ${aspectRatio}",
+      "promptVi": "Bản dịch tiếng Việt..."
+    }
+  ],
+  "environmentPrompts": [
+    {
+      "id": "env_1",
+      "location": "Địa điểm",
+      "prompt": "English environment prompt ending with Style: ${style}, --ar ${aspectRatio}",
+      "promptVi": "Bản dịch tiếng Việt..."
+    }
+  ]
+}
+`;
+      const result = await callGeminiJson(promptText);
+      if (result.individualCharacterPrompts) {
+        result.individualCharacterPrompts = result.individualCharacterPrompts.map((ic, index) => ({
+          characterId: ic.characterId || characters[index]?.id || `char_${index + 1}`,
+          characterName: ic.characterName || characters[index]?.name || `Nhân vật ${index + 1}`,
+          prompt: ic.prompt || "",
+          promptVi: ic.promptVi || "",
+        }));
+      }
+      if (result.environmentPrompts) {
+        result.environmentPrompts = result.environmentPrompts.map((e, index) => ({
+          id: e.id || `env_${index + 1}`,
+          location: e.location || "Địa điểm",
+          prompt: e.prompt || "",
+          promptVi: e.promptVi || "",
+        }));
+      }
+      return result;
+    }
+
+    // 4. Generate Scene Prompts
+    async function generateScenePromptsClient(params) {
+      const { scenes, characters, style, aspectRatio, characterReferencePrompt, environmentPrompts } = params;
+      const promptText = `
+### DỮ LIỆU ĐẦU VÀO
+- Danh sách cảnh: ${JSON.stringify(scenes, null, 2)}
+- Danh sách nhân vật: ${JSON.stringify(characters, null, 2)}
+- Phong cách hình ảnh: "${style}"
+- Tỉ lệ khung hình: "${aspectRatio}"
+- Prompt mẫu nhân vật gộp: "${characterReferencePrompt}"
+- Prompt môi trường: ${JSON.stringify(environmentPrompts, null, 2)}
+
+### QUY TẮC BẮT BUỘC
+1. KHỐI A — PROMPT ẢNH TĨNH KHỞI ĐẦU CẢNH (INITIAL FRAME):
+   - 'initialFramePrompt' (tiếng Anh): Tiếng Anh chuẩn + mô tả ngắn ngoại hình (có quốc tịch, mặc định Vietnamese) + bối cảnh địa điểm + tư thế/biểu cảm mở đầu + phong cách "${style}" + tỉ lệ "--ar ${aspectRatio}". Kết thúc bằng: "no text, no watermark, no logo".
+   - 'initialFramePromptVi' (tiếng Việt): Bản dịch tiếng Việt sát nghĩa tương ứng để hiển thị UI.
+
+2. KHỐI B — PROMPT VIDEO (IMAGE-TO-VIDEO MOTION PROMPT):
+   - 'videoPrompt' (tiếng Anh): Đoạn văn xuôi tiếng Anh liền mạch mô tả chuyển động và diễn biến hành động từ đầu đến cuối cảnh. KHÔNG lặp lại mô tả ngoại hình hay bối cảnh. Kết thúc bằng: "Do not add any text, icons, or symbols (including shopping cart icons) into the video."
+   - 'videoPromptVi' (tiếng Việt): Bản dịch tiếng Việt sát nghĩa tương ứng của 'videoPrompt' để hiển thị UI. Kết thúc bằng: "Không chèn thêm bất kỳ chữ, icon, hay biểu tượng nào (kể cả icon giỏ hàng) vào video."
+
+3. TRƯỜNG "LOCATION" CỦA MỖI CẢNH:
+   - Trường "location" của mỗi cảnh PHẢI lấy nguyên văn (copy chính xác, không diễn giải lại) một trong các giá trị "location" đã có sẵn trong danh sách environmentPrompts được truyền vào.
+
+### CẤU TRÚC JSON ĐẦU RA
+{
+  "scenePrompts": [
+    {
+      "sceneNumber": 1,
+      "sceneTitle": "Tiêu đề cảnh",
+      "location": "Địa điểm",
+      "charactersPresent": ["Tên NV"],
+      "initialFramePrompt": "English image prompt for Block A ending with no text, no watermark, no logo",
+      "initialFramePromptVi": "Bản dịch tiếng Việt của Khối A...",
+      "videoPrompt": "English video motion prompt for Block B...",
+      "videoPromptVi": "Bản dịch tiếng Việt sát nghĩa của Khối B..."
+    }
+  ]
+}
+`;
+      const res = await callGeminiJson(promptText);
+      if (res && Array.isArray(res.scenePrompts) && Array.isArray(environmentPrompts)) {
+        const validLocations = environmentPrompts.map((e) => e.location).filter(Boolean);
+        if (validLocations.length > 0) {
+          res.scenePrompts = res.scenePrompts.map((sp) => {
+            if (sp.location) {
+              const exactMatch = validLocations.find((loc) => loc === sp.location);
+              if (exactMatch) {
+                sp.location = exactMatch;
+              } else {
+                const lowerSpLoc = String(sp.location).trim().toLowerCase();
+                const fuzzyMatch = validLocations.find((loc) => {
+                  const lowerLoc = String(loc).trim().toLowerCase();
+                  return lowerLoc === lowerSpLoc || lowerLoc.includes(lowerSpLoc) || lowerSpLoc.includes(lowerLoc);
+                });
+                if (fuzzyMatch) sp.location = fuzzyMatch;
+              }
+            }
+            return sp;
+          });
+        }
+      }
+      return res;
+    }
+
+    // --- LUCIDE ICONS INLINE SVG COMPONENTS ---
+    const Icon = ({ path, className = "w-4 h-4", viewBox = "0 0 24 24" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox={viewBox}>
+        {path}
+      </svg>
+    );
+
+    const Icons = {
+      CheckCircle2: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></>} />,
+      CheckCircle: (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
+      Key: (props) => <Icon {...props} path={<><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4a1 1 0 0 0-1.4 0l-2.1 2.1a1 1 0 0 0 0 1.4Z"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="16.5" r="4.5"/></>} />,
+      X: (props) => <Icon {...props} path={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>} />,
+      Trash2: (props) => <Icon {...props} path={<><path d="3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
+      Copy: (props) => <Icon {...props} path={<><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></>} />,
+      Check: (props) => <Icon {...props} path={<polyline points="20 6 9 17 4 12"/>} />,
+      Sparkles: (props) => <Icon {...props} path={<><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></>} />,
+      Upload: (props) => <Icon {...props} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></>} />,
+      ArrowRight: (props) => <Icon {...props} path={<><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></>} />,
+      Lightbulb: (props) => <Icon {...props} path={<><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></>} />,
+      Pencil: (props) => <Icon {...props} path={<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></>} />,
+      User: (props) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
+      Send: (props) => <Icon {...props} path={<><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>} />,
+      Plus: (props) => <Icon {...props} path={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />,
+      RotateCcw: (props) => <Icon {...props} path={<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>} />,
+      Palette: (props) => <Icon {...props} path={<><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.7-.6 1.9-1.5.15-.7-.25-1.4-.9-1.7-.55-.26-.9-.8-.9-1.4 0-1 .8-1.8 1.8-1.8h1.6c3.2 0 5.8-2.6 5.8-5.8 0-5.3-4.3-9.8-9.4-9.8Z"/></>} />,
+      Maximize: (props) => <Icon {...props} path={<><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></>} />,
+      Users: (props) => <Icon {...props} path={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
+      MapPin: (props) => <Icon {...props} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>} />,
+      AlertCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
+      Film: (props) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M17 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></>} />,
+      ImageIcon: (props) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></>} />,
+      Video: (props) => <Icon {...props} path={<><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></>} />,
+      Layers: (props) => <Icon {...props} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></>} />,
+      XCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></>} />
+    };
+
+    // --- COMPONENT: HEADER ---
+    const Header = ({ currentStep, onStepClick, maxStepReached, customApiKey, onApiKeyChange }) => {
+      const [isKeyPopoverOpen, setIsKeyPopoverOpen] = useState(false);
+
+      const steps = [
+        { num: 1, label: "Kịch bản", sub: "Ý tưởng & Nhân vật" },
+        { num: 2, label: "Tham chiếu", sub: "Nhân vật & Môi trường" },
+        { num: 3, label: "Prompt cảnh", sub: "Ảnh & Video từng cảnh" }
+      ];
+
+      return (
+        <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-indigo-500/20">
+                  AI
+                </div>
+                <div>
+                  <h1 className="font-bold text-base text-white tracking-tight flex items-center gap-2">
+                    Video Script Studio
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+                      Standalone
+                    </span>
+                  </h1>
+                  <p className="text-xs text-slate-400 hidden sm:block">Chuyển ý tưởng thành bộ Prompt AI Video chuẩn</p>
+                </div>
+              </div>
+
+              {currentStep > 0 && (
+                <nav className="hidden md:flex items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/80">
+                  {steps.map((step) => {
+                    const isPassed = step.num <= maxStepReached;
+                    const isCurrent = currentStep === step.num;
+
+                    return (
+                      <button
+                        key={step.num}
+                        onClick={() => isPassed && onStepClick(step.num)}
+                        disabled={!isPassed}
+                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                          isCurrent
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                            : isPassed
+                            ? "text-slate-300 hover:text-white hover:bg-slate-700/60"
+                            : "text-slate-600 cursor-not-allowed"
+                        }`}
+                      >
+                        <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                          isCurrent ? "bg-white/20 text-white" : isPassed ? "bg-slate-700 text-slate-300" : "bg-slate-800 text-slate-600"
+                        }`}>
+                          {isPassed && !isCurrent ? <Icons.CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : step.num}
+                        </span>
+                        <span>{step.label}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              )}
+
+              <div className="flex items-center gap-2 shrink-0 relative">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Gemini Direct API</span>
+                </div>
+
+                <button
+                  onClick={() => setIsKeyPopoverOpen(!isKeyPopoverOpen)}
+                  title={customApiKey ? "Đang dùng Gemini API Key tùy chỉnh" : "Cấu hình Gemini API Key tùy chỉnh"}
+                  className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    customApiKey
+                      ? "bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30"
+                      : "bg-slate-700/60 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
+                  }`}
+                >
+                  <Icons.Key className={`w-4 h-4 ${customApiKey ? "text-amber-400" : "text-slate-300"}`} />
+                  {customApiKey && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>}
+                </button>
+
+                {isKeyPopoverOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-100">
+                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-700">
+                      <div className="flex items-center gap-2">
+                        <Icons.Key className="w-4 h-4 text-amber-400" />
+                        <div>
+                          <h3 className="font-semibold text-xs text-white">Tùy chỉnh Gemini API Key</h3>
+                          <p className="text-[10px] text-slate-400">Phiên làm việc hiện tại</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setIsKeyPopoverOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                        <Icons.X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-slate-300">
+                        Nhập API key của bạn để ưu tiên sử dụng cho mọi lệnh gọi Gemini AI.
+                      </p>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={customApiKey}
+                          onChange={(e) => onApiKeyChange(e.target.value)}
+                          placeholder="Dán Gemini API Key tại đây..."
+                          className="w-full px-3 py-2 pr-8 bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl text-xs font-mono text-slate-100 focus:outline-none"
+                        />
+                        {customApiKey && (
+                          <button onClick={() => onApiKeyChange('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400">
+                            <Icons.Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        {customApiKey ? (
+                          <span className="text-amber-400 font-medium">• Đang dùng key tùy chỉnh</span>
+                        ) : (
+                          <span className="text-slate-400">• Đang dùng key mặc định</span>
+                        )}
+                        <button onClick={() => setIsKeyPopoverOpen(false)} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-medium">
+                          Xong
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+      );
+    };
+
+    // --- COMPONENT: PROGRESS BAR ---
+    const ProgressBar = ({ isLoading, progress, statusText }) => {
+      if (!isLoading) return null;
+      return (
+        <div className="sticky top-16 z-30 bg-slate-900/90 backdrop-blur border-b border-slate-800 py-2.5 px-4">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 text-xs mb-1.5">
+            <span className="font-semibold text-indigo-400 flex items-center gap-2">
+              <span className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
+              {statusText || 'Đang xử lý với Gemini AI...'}
+            </span>
+            <span className="font-mono text-slate-400">{progress}%</span>
+          </div>
+          <div className="max-w-5xl mx-auto w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-400 transition-all duration-300" style={{ width: `${progress}%` }}></div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- COMPONENT: PROMPT CARD ---
+    const PromptCard = ({ title, subtitle, promptText, displayText, badge, badgeColor = 'purple', className = '', copyLabel = 'Sao chép prompt' }) => {
+      const [copied, setCopied] = useState(false);
+
+      const handleCopy = async () => {
+        try {
+          await navigator.clipboard.writeText(promptText);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+          console.error('Failed to copy: ', err);
+        }
+      };
+
+      const badgeColors = {
+        purple: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+        blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        indigo: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+      };
+
+      return (
+        <div className={`bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg transition-all hover:border-slate-600 ${className}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold text-slate-100 text-sm">{title}</h4>
+              {badge && (
+                <span className={`text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md border ${badgeColors[badgeColor]}`}>
+                  {badge}
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={handleCopy}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shadow-md ${
+                copied ? 'bg-emerald-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+              }`}
+            >
+              {copied ? <Icons.Check className="w-3.5 h-3.5" /> : <Icons.Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'Đã sao chép!' : copyLabel}</span>
+            </button>
+          </div>
+
+          {subtitle && <p className="text-xs text-slate-400 mb-3">{subtitle}</p>}
+
+          <div className="p-3.5 bg-slate-900/50 border border-slate-700 rounded-lg text-[11px] leading-relaxed text-slate-300 font-sans whitespace-pre-wrap select-all">
+            {displayText || promptText}
+          </div>
+        </div>
+      );
+    };
+
+    // --- COMPONENT: STEP 0 INPUT IDEA ---
+    const Step0InputIdea = ({ onGenerateScript, isLoading }) => {
+      const [idea, setIdea] = useState('');
+      const [hasProduct, setHasProduct] = useState(false);
+      const [productImage, setProductImage] = useState(null);
+      const [errorMsg, setErrorMsg] = useState('');
+
+      const handleApplySample = (sample) => {
+        setIdea(sample.description);
+        setHasProduct(sample.hasProduct);
+        if (!sample.hasProduct) setProductImage(null);
+        setErrorMsg('');
+      };
+
+      const handleImageUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          setErrorMsg('Vui lòng chọn file hình ảnh hợp lệ (PNG, JPG, WEBP).');
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          setErrorMsg('Kích thước ảnh tối đa 10MB.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          setProductImage({
+            dataUrl: reader.result,
+            mimeType: file.type,
+          });
+          setErrorMsg('');
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!idea.trim()) {
+          setErrorMsg('Vui lòng nhập mô tả ý tưởng video của bạn.');
+          return;
+        }
+        if (hasProduct && !productImage) {
+          setErrorMsg('Vì bạn chọn video có sản phẩm, vui lòng tải ảnh sản phẩm lên để AI phân tích chi tiết.');
+          return;
+        }
+        setErrorMsg('');
+        onGenerateScript(idea.trim(), hasProduct, productImage);
+      };
+
+      return (
+        <div className="max-w-4xl mx-auto py-6 px-4">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-3">
+              <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Biến Ý Tưởng Thành Bộ Prompt AI Tạo Ảnh & Video Chuẩn</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-2">
+              Nhập Ý Tưởng Video Của Bạn
+            </h2>
+            <p className="text-slate-400 text-sm max-w-2xl mx-auto">
+              AI Studio sẽ tự động biên tập kịch bản chi tiết, tạo prompt ảnh tham chiếu nhân vật & môi trường, và bộ prompt video cho từng cảnh dán sang Midjourney, Kling, Runway, Luma...
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 sm:p-7 shadow-lg space-y-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2.5 text-xs font-semibold text-slate-300">
+                <Icons.Lightbulb className="w-4 h-4 text-amber-400" />
+                <span>Gợi ý mẫu bấm chọn nhanh:</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {SAMPLE_IDEAS.map((sample, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleApplySample(sample)}
+                    className="text-left p-3 rounded-xl bg-slate-900/50 border border-slate-700 hover:border-indigo-500/50 hover:bg-slate-900 transition-all text-xs group"
+                  >
+                    <div className="font-semibold text-slate-200 group-hover:text-indigo-400 mb-1 flex items-center justify-between">
+                      <span>{sample.title}</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                        {sample.category}
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-[11px] line-clamp-2">{sample.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="video-idea-input" className="block text-sm font-semibold text-slate-200 mb-2">
+                1. Mô tả ý tưởng video của bạn <span className="text-rose-400">*</span>
+              </label>
+              <textarea
+                id="video-idea-input"
+                rows={5}
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                placeholder="Ví dụ: Một video ngắn 30s mở đầu bằng cảnh một bạn trẻ mệt mỏi ở văn phòng giữa buổi chiều, mở tủ lạnh thấy chai nước ép trái cây tươi mát, sau khi uống cảm thấy tràn đầy năng lượng..."
+                className="w-full p-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-sm font-semibold text-slate-200 block">
+                    2. Video có sản phẩm cụ thể cần xuất hiện không?
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Nếu chọn Có, bạn tải ảnh sản phẩm lên để AI phân tích kiểu dáng, màu sắc.
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-800 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => { setHasProduct(false); setProductImage(null); }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${!hasProduct ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Không
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHasProduct(true)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${hasProduct ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Có sản phẩm
+                  </button>
+                </div>
+              </div>
+
+              {hasProduct && (
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="block text-xs font-semibold text-slate-300 mb-2">
+                    Tải ảnh sản phẩm thực tế <span className="text-rose-400">(Bắt buộc)</span>
+                  </span>
+
+                  {productImage ? (
+                    <div className="flex items-center gap-4 p-3 bg-slate-900 rounded-xl border border-indigo-500/30">
+                      <img src={productImage.dataUrl} alt="Sản phẩm" className="w-20 h-20 object-cover rounded-lg border border-slate-700" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 mb-1">
+                          <Icons.CheckCircle className="w-4 h-4" />
+                          <span>Đã tải ảnh sản phẩm thành công</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Ảnh sẽ được Gemini AI phân tích chi tiết.
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => setProductImage(null)} className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg">
+                        <Icons.X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-6 bg-slate-900 border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl cursor-pointer group">
+                      <Icons.Upload className="w-8 h-8 text-indigo-400 mb-2" />
+                      <span className="text-xs font-semibold text-slate-200 mb-1">Bấm để tải ảnh sản phẩm thực tế</span>
+                      <span className="text-[11px] text-slate-400">Chấp nhận PNG, JPG, WEBP (Tối đa 10MB)</span>
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {errorMsg && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 font-medium">
+                {errorMsg}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Đang phân tích ý tưởng & biên tập kịch bản...</span>
+                </>
+              ) : (
+                <>
+                  <Icons.Sparkles className="w-5 h-5 text-amber-300" />
+                  <span>Tạo kịch bản (Sang bước 1)</span>
+                  <Icons.ArrowRight className="w-5 h-5 ml-1" />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      );
+    };
+
+    // --- COMPONENT: STEP 1 SCRIPT ---
+    const Step1Script = ({ projectData, onUpdateProjectData, onRefineWithAi, onRegenerateFullScript, onNextStep, isLoading }) => {
+      const [editingTitle, setEditingTitle] = useState(false);
+      const [titleInput, setTitleInput] = useState(projectData.title);
+      const [refineInput, setRefineInput] = useState('');
+      const [editingCharId, setEditingCharId] = useState(null);
+      const [editingNarrative, setEditingNarrative] = useState(false);
+      const [narrativeInput, setNarrativeInput] = useState(projectData.scriptNarrative);
+      const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+      const refineInputRef = useRef(null);
+
+      const handleSaveTitle = () => {
+        if (titleInput.trim()) onUpdateProjectData({ ...projectData, title: titleInput.trim() });
+        setEditingTitle(false);
+      };
+
+      const handleConfirmRegenerate = async () => {
+        setShowRegenerateModal(false);
+        await onRegenerateFullScript();
+      };
+
+      const handleUpdateChar = (id, field, value) => {
+        const updatedChars = projectData.characters.map((c) => c.id === id ? { ...c, [field]: value } : c);
+        onUpdateProjectData({ ...projectData, characters: updatedChars });
+      };
+
+      const handleAddChar = () => {
+        const newChar = {
+          id: `char_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          name: 'Nhân vật mới',
+          age: '25 tuổi',
+          role: 'Phụ',
+          appearance: 'Gương mặt thanh tú, tóc đen tự nhiên, phong cách năng động.',
+        };
+        onUpdateProjectData({ ...projectData, characters: [...projectData.characters, newChar] });
+        setEditingCharId(newChar.id);
+      };
+
+      const handleDeleteChar = (id) => {
+        const updatedChars = projectData.characters.filter((c) => c.id !== id);
+        onUpdateProjectData({ ...projectData, characters: updatedChars });
+      };
+
+      const handleSaveNarrative = () => {
+        onUpdateProjectData({ ...projectData, scriptNarrative: narrativeInput });
+        setEditingNarrative(false);
+      };
+
+      const handleRefineSubmit = async (e) => {
+        e.preventDefault();
+        if (!refineInput.trim()) return;
+        await onRefineWithAi(refineInput.trim());
+        setRefineInput('');
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto py-6 px-4 pb-28">
+          <div className="mb-6 bg-slate-800 border border-indigo-500/30 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-slate-800 to-indigo-950/40">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                <Icons.RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-100 text-sm">Chưa ưng ý với kịch bản này?</h3>
+                <p className="text-xs text-slate-400">Sinh phiên bản kịch bản mới hoàn toàn từ ý tưởng ban đầu.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowRegenerateModal(true)}
+              disabled={isLoading}
+              className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Icons.RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>🔄 Viết lại toàn bộ kịch bản</span>
+            </button>
+          </div>
+
+          {showRegenerateModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+                    <Icons.RotateCcw className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-slate-100 text-base">Xác nhận viết lại toàn bộ kịch bản</h3>
+                </div>
+                <p className="text-sm text-slate-300 bg-slate-900/60 p-3.5 rounded-xl border border-slate-700">
+                  Toàn bộ nhân vật và kịch bản hiện tại sẽ bị thay thế, bạn có chắc chắn?
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setShowRegenerateModal(false)} className="px-4 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs font-medium">
+                    Hủy
+                  </button>
+                  <button onClick={handleConfirmRegenerate} disabled={isLoading} className="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg">
+                    Đồng ý viết lại
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Title Block */}
+          <div className="mb-6 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Khối 1 — Tên dự án</span>
+              {!editingTitle && (
+                <button onClick={() => { setTitleInput(projectData.title); setEditingTitle(true); }} className="px-2.5 py-1 text-xs text-slate-300 bg-slate-700 rounded-lg hover:bg-slate-600 flex items-center gap-1.5">
+                  <Icons.Pencil className="w-3.5 h-3.5" />
+                  <span>Đổi tên</span>
+                </button>
+              )}
+            </div>
+            {editingTitle ? (
+              <div className="flex items-center gap-2">
+                <input type="text" value={titleInput} onChange={(e) => setTitleInput(e.target.value)} className="flex-1 px-3 py-2 bg-slate-900 border border-indigo-500 rounded-xl text-lg font-bold text-white focus:outline-none" autoFocus />
+                <button onClick={handleSaveTitle} className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-semibold">Lưu</button>
+                <button onClick={() => setEditingTitle(false)} className="px-3 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs">Hủy</button>
+              </div>
+            ) : (
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{projectData.title}</h2>
+            )}
+          </div>
+
+          {/* Characters Block */}
+          <div className="mb-6 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 block">Khối 2 — Danh sách nhân vật</span>
+                <p className="text-xs text-slate-400">Mô tả ngoại hình này sẽ làm gốc cho prompt ảnh nhân vật ở Bước 2.</p>
+              </div>
+              <button onClick={handleAddChar} className="px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5">
+                <Icons.Plus className="w-3.5 h-3.5" />
+                <span>Thêm nhân vật</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {projectData.characters.map((char) => {
+                const isEditingThis = editingCharId === char.id;
+                return (
+                  <div key={char.id} className="bg-slate-900/50 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm shrink-0">
+                            <Icons.User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-100 text-sm">{char.name}</h4>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                              <span>{char.age}</span>
+                              <span>•</span>
+                              <span className="text-amber-400">{char.role}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setEditingCharId(isEditingThis ? null : char.id)} className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+                            <Icons.Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          {projectData.characters.length > 1 && (
+                            <button onClick={() => handleDeleteChar(char.id)} className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800">
+                              <Icons.Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {isEditingThis ? (
+                        <div className="space-y-2 mt-3 pt-3 border-t border-slate-800 text-xs">
+                          <div>
+                            <label className="text-slate-400 block mb-1">Tên nhân vật:</label>
+                            <input type="text" value={char.name} onChange={(e) => handleUpdateChar(char.id, 'name', e.target.value)} className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-slate-400 block mb-1">Tuổi:</label>
+                              <input type="text" value={char.age} onChange={(e) => handleUpdateChar(char.id, 'age', e.target.value)} className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white" />
+                            </div>
+                            <div>
+                              <label className="text-slate-400 block mb-1">Vai trò:</label>
+                              <input type="text" value={char.role} onChange={(e) => handleUpdateChar(char.id, 'role', e.target.value)} className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-slate-400 block mb-1">Mô tả ngoại hình:</label>
+                            <textarea rows={3} value={char.appearance} onChange={(e) => handleUpdateChar(char.id, 'appearance', e.target.value)} className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white" />
+                          </div>
+                          <button onClick={() => setEditingCharId(null)} className="w-full py-1.5 bg-indigo-600 text-white rounded-lg font-semibold text-xs">Xong</button>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 bg-slate-900/60 rounded-lg border border-slate-800 text-xs text-slate-300 leading-relaxed mt-2">
+                          <span className="font-semibold text-slate-400 block mb-0.5">Ngoại hình:</span>
+                          {char.appearance}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detailed Script Narrative Block */}
+          <div className="mb-6 bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 block">Khối 3 — Kịch bản chi tiết (Văn xuôi)</span>
+                <p className="text-xs text-slate-400">Kịch bản đọc như một câu chuyện, lời thoại lồng ghép tự nhiên.</p>
+              </div>
+              {!editingNarrative && (
+                <button onClick={() => { setNarrativeInput(projectData.scriptNarrative); setEditingNarrative(true); }} className="px-2.5 py-1 text-xs text-slate-300 bg-slate-700 rounded-lg flex items-center gap-1.5">
+                  <Icons.Pencil className="w-3.5 h-3.5" />
+                  <span>Chỉnh sửa</span>
+                </button>
+              )}
+            </div>
+
+            {editingNarrative ? (
+              <div className="space-y-3">
+                <textarea rows={12} value={narrativeInput} onChange={(e) => setNarrativeInput(e.target.value)} className="w-full p-4 bg-slate-900 border border-indigo-500 rounded-xl text-slate-100 text-sm leading-relaxed focus:outline-none" />
+                <div className="flex items-center justify-end gap-2">
+                  <button onClick={() => setEditingNarrative(false)} className="px-4 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs">Hủy</button>
+                  <button onClick={handleSaveNarrative} className="px-5 py-2 bg-indigo-500 text-white rounded-xl font-semibold text-xs">Lưu kịch bản</button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 sm:p-5 bg-slate-900/50 border border-slate-700 rounded-xl text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                {projectData.scriptNarrative}
+              </div>
+            )}
+          </div>
+
+          {/* AI Refinement */}
+          <div className="mb-6 bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-1.5">
+              Muốn sửa gì không? (Gửi yêu cầu cho Gemini AI)
+            </label>
+            <p className="text-xs text-slate-400 mb-3">
+              Nhập yêu cầu (ví dụ: "Đổi tên nhân vật nam thành Tuấn", "Thêm 1 cảnh ở quán cà phê", "Cho kịch bản hài hước hơn").
+            </p>
+            <form onSubmit={handleRefineSubmit} className="flex gap-2">
+              <input
+                ref={refineInputRef}
+                type="text"
+                value={refineInput}
+                onChange={(e) => setRefineInput(e.target.value)}
+                placeholder="Nhập yêu cầu sửa kịch bản..."
+                disabled={isLoading}
+                className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400"
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !refineInput.trim()}
+                className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isLoading ? <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" /> : <Icons.Send className="w-4 h-4" />}
+                <span>Gửi yêu cầu</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Bottom Nav Bar */}
+          <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 py-3.5 px-4 z-30 shadow-2xl">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+              <button onClick={() => { refineInputRef.current?.focus(); refineInputRef.current?.scrollIntoView({ behavior: 'smooth' }); }} className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold flex items-center gap-2">
+                <Icons.Pencil className="w-4 h-4 text-amber-400" />
+                <span>[✏️ Tôi muốn sửa]</span>
+              </button>
+              <button onClick={onNextStep} disabled={isLoading} className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg flex items-center gap-2 disabled:opacity-50">
+                <Icons.CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span>[✅ Đồng ý, sang bước 2]</span>
+                <Icons.ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- COMPONENT: STEP 2 REFERENCE PROMPTS ---
+    const Step2ReferencePrompts = ({ projectData, onUpdateProjectData, onGenerateReferencePrompts, onNextStep, isScriptModifiedAfterGenerate, isLoading }) => {
+      const [showStyleModal, setShowStyleModal] = useState(false);
+      const [showRatioModal, setShowRatioModal] = useState(false);
+
+      const handleSelectStyle = async (newStyle) => {
+        setShowStyleModal(false);
+        onUpdateProjectData({ ...projectData, style: newStyle });
+        await onGenerateReferencePrompts(newStyle, projectData.aspectRatio);
+      };
+
+      const handleSelectRatio = async (newRatio) => {
+        setShowRatioModal(false);
+        onUpdateProjectData({ ...projectData, aspectRatio: newRatio });
+        await onGenerateReferencePrompts(projectData.style, newRatio);
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto py-6 px-4 pb-28 space-y-6">
+          {isScriptModifiedAfterGenerate && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-2">
+                <Icons.AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>⚠️ Kịch bản ở Tab 1 đã thay đổi — nhấn 'Tạo lại theo kịch bản mới' để đồng bộ.</span>
+              </div>
+              <button onClick={() => onGenerateReferencePrompts(projectData.style, projectData.aspectRatio)} disabled={isLoading} className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shrink-0 disabled:opacity-50">
+                {isLoading ? 'Đang tạo lại...' : 'Tạo lại theo kịch bản mới'}
+              </button>
+            </div>
+          )}
+
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                <Icons.Palette className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-widest">Phong cách hình ảnh:</span>
+                <span className="text-sm font-bold text-slate-100">{projectData.style || "Hiện thực"}</span>
+              </div>
+              <button onClick={() => setShowStyleModal(true)} className="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
+                Đổi phong cách
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-slate-700 pt-3 md:pt-0 md:pl-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                <Icons.Maximize className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-widest">Tỉ lệ khung hình:</span>
+                <span className="text-sm font-bold text-slate-100">{projectData.aspectRatio}</span>
+              </div>
+              <button onClick={() => setShowRatioModal(true)} className="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
+                Đổi tỉ lệ
+              </button>
+            </div>
+          </div>
+
+          {/* All Characters Reference Prompt */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-3">
+            <div className="flex items-center gap-2">
+              <Icons.Users className="w-5 h-5 text-indigo-400" />
+              <div>
+                <h3 className="font-bold text-slate-100 text-base">Prompt ảnh mẫu nhân vật (Character Reference Prompt)</h3>
+                <p className="text-xs text-slate-400">Gộp tất cả nhân vật trong một ảnh tham chiếu góc đứng trung lập A-pose, nền trắng trơn.</p>
+              </div>
+            </div>
+            <PromptCard
+              title="Tất cả nhân vật (Ảnh gộp tham chiếu)"
+              subtitle="Tư thế trung lập A-pose • Nền trắng trơn • Không sản phẩm • Không chữ"
+              promptText={projectData.characterReferencePrompt || "Đang khởi tạo prompt..."}
+              displayText={projectData.characterReferencePromptVi}
+              badge="Character Ref"
+              badgeColor="purple"
+            />
+          </div>
+
+          {/* Individual Character Prompts */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <div className="flex items-center gap-2">
+              <Icons.User className="w-5 h-5 text-indigo-400" />
+              <div>
+                <h3 className="font-bold text-slate-100 text-base">Prompt ảnh mẫu riêng cho từng nhân vật</h3>
+                <p className="text-xs text-slate-400">Liệt kê prompt tham chiếu tạo hình riêng cho từng nhân vật.</p>
+              </div>
+            </div>
+            {projectData.individualCharacterPrompts && projectData.individualCharacterPrompts.length > 0 ? (
+              <div className="space-y-4">
+                {projectData.individualCharacterPrompts.map((indivItem, idx) => (
+                  <PromptCard
+                    key={idx}
+                    title={`Nhân vật: ${indivItem.characterName}`}
+                    subtitle="Tham chiếu cá nhân • Tư thế đứng trung lập • Nền trắng trơn"
+                    promptText={indivItem.prompt}
+                    displayText={indivItem.promptVi}
+                    badge={`Ref: ${indivItem.characterName}`}
+                    badgeColor="indigo"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-slate-400 text-xs bg-slate-900/50 rounded-xl border border-slate-700">
+                Prompt ảnh riêng cho từng nhân vật sẽ xuất hiện tại đây.
+              </div>
+            )}
+          </div>
+
+          {/* Environment Prompts */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <div className="flex items-center gap-2">
+              <Icons.MapPin className="w-5 h-5 text-emerald-400" />
+              <div>
+                <h3 className="font-bold text-slate-100 text-base">Prompt ảnh môi trường (Environment Reference Prompts)</h3>
+                <p className="text-xs text-slate-400">Mỗi địa điểm duy nhất có 1 prompt bối cảnh: Không người • Không chữ.</p>
+              </div>
+            </div>
+            {projectData.environmentPrompts && projectData.environmentPrompts.length > 0 ? (
+              <div className="space-y-4">
+                {projectData.environmentPrompts.map((envItem, idx) => (
+                  <PromptCard
+                    key={idx}
+                    title={`Địa điểm: ${envItem.location}`}
+                    subtitle={`Bối cảnh góc rộng • Không người • Tỉ lệ ${projectData.aspectRatio}`}
+                    promptText={envItem.prompt}
+                    displayText={envItem.promptVi}
+                    badge="Environment Ref"
+                    badgeColor="emerald"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-slate-400 text-xs bg-slate-900/50 rounded-xl border border-slate-700">
+                Đang khởi tạo prompt môi trường...
+              </div>
+            )}
+          </div>
+
+          {/* Style Modal */}
+          {showStyleModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+                <h3 className="font-bold text-slate-100 text-base">Chọn phong cách hình ảnh</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto p-1">
+                  {VISUAL_STYLES.map((styleOpt) => (
+                    <button
+                      key={styleOpt.id}
+                      onClick={() => handleSelectStyle(styleOpt.id)}
+                      className={`text-left p-3 rounded-xl border text-xs transition-all ${
+                        projectData.style === styleOpt.id
+                          ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 font-bold'
+                          : 'bg-slate-900/50 border-slate-700 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <div className="font-semibold mb-0.5">{styleOpt.name}</div>
+                      <div className="text-[10px] text-slate-400 line-clamp-1">{styleOpt.promptTag}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setShowStyleModal(false)} className="px-4 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Hủy</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ratio Modal */}
+          {showRatioModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+                <h3 className="font-bold text-slate-100 text-base">Chọn tỉ lệ khung hình</h3>
+                <div className="space-y-2">
+                  {ASPECT_RATIOS.map((ratioOpt) => (
+                    <button
+                      key={ratioOpt.value}
+                      onClick={() => handleSelectRatio(ratioOpt.value)}
+                      className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-center justify-between ${
+                        projectData.aspectRatio === ratioOpt.value
+                          ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 font-bold'
+                          : 'bg-slate-900/50 border-slate-700 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-semibold">{ratioOpt.label}</div>
+                        <div className="text-[10px] text-slate-400">{ratioOpt.desc}</div>
+                      </div>
+                      {projectData.aspectRatio === ratioOpt.value && <Icons.CheckCircle2 className="w-4 h-4 text-indigo-400" />}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setShowRatioModal(false)} className="px-4 py-2 bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Hủy</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom Bar */}
+          <div className="fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur border-t border-slate-700 py-3.5 px-4 z-30 shadow-2xl">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+              <button
+                onClick={onNextStep}
+                disabled={isLoading}
+                className="ml-auto px-6 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm shadow-lg flex items-center gap-2 disabled:opacity-50"
+              >
+                <Icons.CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span>[✅ Đồng ý, sang bước 3]</span>
+                <Icons.ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- COMPONENT: STEP 3 SCENE PROMPTS ---
+    const Step3ScenePrompts = ({ projectData, onUpdateProjectData, onResetProject, onGenerateScenePrompts, isScriptModifiedAfterGenerate, isLoading }) => {
+      const [copiedAll, setCopiedAll] = useState(false);
+      const [copiedItemKey, setCopiedItemKey] = useState(null);
+      const [toast, setToast] = useState(null);
+      const toastTimerRef = useRef(null);
+
+      useEffect(() => {
+        return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
+      }, []);
+
+      const showToast = (type, message) => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setToast({ id: Date.now(), type, message });
+        toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+      };
+
+      const triggerCopyFeedback = (key) => {
+        setCopiedItemKey(key);
+        setTimeout(() => setCopiedItemKey(null), 1500);
+      };
+
+      const handleCopyLocationPrompt = async (locationName, itemKey) => {
+        if (!locationName || locationName === 'N/A') {
+          showToast('error', `Không tìm thấy prompt môi trường cho: ${locationName || 'N/A'}`);
+          return;
+        }
+        const cleanLoc = locationName.trim().toLowerCase();
+        const envPrompts = projectData.environmentPrompts || [];
+        const matched = envPrompts.find((e) => e.location && e.location.trim().toLowerCase() === cleanLoc) ||
+                        envPrompts.find((e) => e.location && (e.location.trim().toLowerCase().includes(cleanLoc) || cleanLoc.includes(e.location.trim().toLowerCase())));
+
+        if (matched && matched.prompt) {
+          try {
+            await navigator.clipboard.writeText(matched.prompt);
+            triggerCopyFeedback(itemKey);
+            showToast('success', `Đã sao chép prompt môi trường: ${matched.location || locationName}`);
+          } catch (err) {
+            showToast('error', `Lỗi khi sao chép: ${locationName}`);
+          }
+        } else {
+          showToast('error', `Không tìm thấy prompt môi trường cho: ${locationName}`);
+        }
+      };
+
+      const handleCopyCharacterPrompt = async (charName, itemKey) => {
+        if (!charName) {
+          showToast('error', 'Không tìm thấy prompt nhân vật.');
+          return;
+        }
+        const cleanName = charName.trim().toLowerCase();
+        const indivPrompts = projectData.individualCharacterPrompts || [];
+        const matched = indivPrompts.find((c) => c.characterName && c.characterName.trim().toLowerCase() === cleanName) ||
+                        indivPrompts.find((c) => c.characterName && (c.characterName.trim().toLowerCase().includes(cleanName) || cleanName.includes(c.characterName.trim().toLowerCase())));
+
+        if (matched && matched.prompt) {
+          try {
+            await navigator.clipboard.writeText(matched.prompt);
+            triggerCopyFeedback(itemKey);
+            showToast('success', `Đã sao chép prompt nhân vật: ${matched.characterName || charName}`);
+          } catch (err) {
+            showToast('error', `Lỗi khi sao chép: ${charName}`);
+          }
+        } else {
+          showToast('error', `Không tìm thấy prompt nhân vật cho: ${charName}`);
+        }
+      };
+
+      const allVideoPromptsMergedVi = (projectData.scenePrompts || [])
+        .map((sp, idx) => {
+          const label = idx === 0 ? `[Ảnh tham chiếu 1 — mở đầu | ${sp.sceneTitle}]` : `[Ảnh tham chiếu ${sp.sceneNumber} — tiếp nối cảnh trước | ${sp.sceneTitle}]`;
+          return `${label}\n${sp.videoPromptVi || sp.videoPrompt}`;
+        })
+        .join('\n\n');
+
+      const allVideoPromptsMergedEn = (projectData.scenePrompts || [])
+        .map((sp, idx) => {
+          const label = idx === 0 ? `[Ảnh tham chiếu 1 — mở đầu | ${sp.sceneTitle}]` : `[Ảnh tham chiếu ${sp.sceneNumber} — tiếp nối cảnh trước | ${sp.sceneTitle}]`;
+          return `${label}\n${sp.videoPrompt}`;
+        })
+        .join('\n\n');
+
+      const handleCopyAllVideoPrompts = async () => {
+        try {
+          await navigator.clipboard.writeText(allVideoPromptsMergedEn);
+          setCopiedAll(true);
+          setTimeout(() => setCopiedAll(false), 2000);
+        } catch (err) {
+          console.error('Failed to copy all video prompts: ', err);
+        }
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto py-6 px-4 pb-28 space-y-8 relative">
+          {toast && (
+            <div className={`fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-semibold ${
+              toast.type === 'success' ? 'bg-slate-900 border-emerald-500/60 text-emerald-300' : 'bg-slate-900 border-rose-500/60 text-rose-300'
+            }`}>
+              {toast.type === 'success' ? <Icons.CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Icons.XCircle className="w-4 h-4 text-rose-400" />}
+              <span>{toast.message}</span>
+            </div>
+          )}
+
+          {isScriptModifiedAfterGenerate && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-2">
+                <Icons.AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>⚠️ Kịch bản ở Tab 1 đã thay đổi — nhấn 'Tạo lại theo kịch bản mới' nếu cần đồng bộ.</span>
+              </div>
+              <button onClick={onGenerateScenePrompts} disabled={isLoading} className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shrink-0 disabled:opacity-50">
+                {isLoading ? 'Đang tạo lại...' : 'Tạo lại theo kịch bản mới'}
+              </button>
+            </div>
+          )}
+
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Icons.Film className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                  Bước 3 — Prompt Ảnh Khởi Đầu & Prompt Video Từng Cảnh
+                </h2>
+                <p className="text-xs text-slate-400">Mỗi cảnh được chia làm 2 khối riêng biệt: Khối A (ảnh mở đầu) và Khối B (video chuyển động).</p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3.5 bg-slate-900/60 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1.5">
+              <div className="font-semibold text-amber-400 flex items-center gap-1.5">
+                <Icons.Sparkles className="w-3.5 h-3.5" />
+                <span>Quy trình sử dụng chuẩn:</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
+                <li><strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram...).</li>
+                <li><strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô chuyển động.</li>
+              </ol>
+            </div>
+          </div>
+
+          {projectData.scenePrompts && projectData.scenePrompts.length > 0 ? (
+            <div className="space-y-6">
+              {projectData.scenePrompts.map((sp, idx) => (
+                <div key={idx} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+                  <div className="border-b border-slate-700/80 pb-3.5 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm shrink-0">
+                        {sp.sceneNumber < 10 ? `0${sp.sceneNumber}` : sp.sceneNumber}
+                      </span>
+                      <h3 className="font-bold text-slate-100 text-base sm:text-lg tracking-tight">{sp.sceneTitle}</h3>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm text-slate-300 pl-11">
+                      <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700/80">
+                        <span>📍</span>
+                        <span className="font-medium text-slate-400">Địa điểm:</span>
+                        <span className="font-semibold text-slate-100">{sp.location || 'N/A'}</span>
+                        {sp.location && sp.location !== 'N/A' && (
+                          <button
+                            onClick={() => handleCopyLocationPrompt(sp.location, `loc_${idx}`)}
+                            title={`Sao chép prompt môi trường: ${sp.location}`}
+                            className="ml-1 p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-400 cursor-pointer"
+                          >
+                            {copiedItemKey === `loc_${idx}` ? <Icons.Check className="w-3.5 h-3.5 text-emerald-400" /> : <Icons.Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+
+                      {sp.charactersPresent && sp.charactersPresent.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700/80">
+                          <span>👥</span>
+                          <span className="font-medium text-slate-400">Nhân vật:</span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {sp.charactersPresent.map((charName, charIdx) => {
+                              const charKey = `char_${idx}_${charIdx}`;
+                              return (
+                                <span key={charIdx} className="inline-flex items-center gap-1">
+                                  <span className="font-semibold text-purple-300">{charName}</span>
+                                  <button
+                                    onClick={() => handleCopyCharacterPrompt(charName, charKey)}
+                                    title={`Sao chép prompt nhân vật: ${charName}`}
+                                    className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-purple-300 cursor-pointer"
+                                  >
+                                    {copiedItemKey === charKey ? <Icons.Check className="w-3.5 h-3.5 text-emerald-400" /> : <Icons.Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                  {charIdx < sp.charactersPresent.length - 1 && <span className="text-slate-500 mr-0.5">,</span>}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                        <Icons.ImageIcon className="w-4 h-4" />
+                        <span>Khối A — Prompt Ảnh Khởi Đầu Cảnh</span>
+                      </div>
+                      <PromptCard
+                        title="Prompt tạo ảnh tĩnh mở đầu cảnh"
+                        subtitle="Mô tả ngoại hình + bối cảnh + tư thế mở đầu"
+                        promptText={sp.initialFramePrompt}
+                        displayText={sp.initialFramePromptVi}
+                        badge="Khối A (Image)"
+                        badgeColor="indigo"
+                        copyLabel="Sao chép prompt ảnh"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-widest">
+                        <Icons.Video className="w-4 h-4" />
+                        <span>Khối B — Prompt Video Của Cảnh</span>
+                      </div>
+                      <PromptCard
+                        title="Prompt dán kèm ảnh vào AI Video"
+                        subtitle="Tả diễn biến hành động liền mạch • Đúng thoại"
+                        promptText={sp.videoPrompt}
+                        displayText={sp.videoPromptVi}
+                        badge="Khối B (Video)"
+                        badgeColor="amber"
+                        copyLabel="Sao chép prompt video"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center text-slate-400 bg-slate-800 border border-slate-700 rounded-2xl shadow-lg">
+              Đang tạo bộ prompt cảnh...
+            </div>
+          )}
+
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Icons.Layers className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="font-bold text-slate-100 text-base">Video đa ảnh tham chiếu (xem liền mạch toàn bộ cảnh)</h3>
+                  <p className="text-xs text-slate-400">Toàn bộ prompt Khối B nối tiếp theo thứ tự.</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCopyAllVideoPrompts}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  copiedAll ? 'bg-emerald-600 text-white' : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                }`}
+              >
+                {copiedAll ? <Icons.Check className="w-4 h-4" /> : <Icons.Copy className="w-4 h-4" />}
+                <span>{copiedAll ? 'Đã sao chép tất cả!' : 'Sao chép toàn bộ'}</span>
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-900/50 border border-slate-700 rounded-xl text-[11px] font-mono text-slate-300 leading-relaxed whitespace-pre-wrap select-all max-h-96 overflow-y-auto">
+              {allVideoPromptsMergedVi}
+            </div>
+          </div>
+
+          <div className="pt-4 flex justify-center">
+            <button
+              onClick={onResetProject}
+              className="px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg flex items-center gap-2"
+            >
+              <Icons.RotateCcw className="w-4 h-4" />
+              <span>BẮT ĐẦU DỰ ÁN MỚI</span>
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // --- MAIN APP COMPONENT ---
+    function App() {
+      const [currentStep, setCurrentStep] = useState(0);
+      const [maxStepReached, setMaxStepReached] = useState(1);
+      const [isLoading, setIsLoading] = useState(false);
+      const [loadingProgress, setLoadingProgress] = useState(0);
+      const [loadingStatus, setLoadingStatus] = useState('');
+      const [errorMsg, setErrorMsg] = useState(null);
+      const [customApiKey, setCustomApiKey] = useState('');
+
+      const handleApiKeyChange = (key) => {
+        setCustomApiKey(key);
+        setSessionApiKey(key);
+      };
+
+      const progressIntervalRef = useRef(null);
+
+      useEffect(() => {
+        return () => { if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); };
+      }, []);
+
+      const startLoading = (initialStatus) => {
+        setIsLoading(true);
+        setLoadingProgress(10);
+        setLoadingStatus(initialStatus);
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+        progressIntervalRef.current = setInterval(() => {
+          setLoadingProgress((prev) => {
+            if (prev >= 92) return prev;
+            return prev + Math.max(1, Math.floor((95 - prev) / 6));
+          });
+        }, 350);
+      };
+
+      const updateLoadingStatus = (status) => setLoadingStatus(status);
+
+      const stopLoading = () => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+        setLoadingProgress(100);
+        setTimeout(() => {
+          setIsLoading(false);
+          setLoadingProgress(0);
+          setLoadingStatus('');
+        }, 350);
+      };
+
+      const [rawIdea, setRawIdea] = useState('');
+      const [projectData, setProjectData] = useState({
+        title: '',
+        characters: [],
+        scriptNarrative: '',
+        scenes: [],
+        style: 'Hiện thực',
+        aspectRatio: '9:16',
+        characterReferencePrompt: '',
+        characterReferencePromptVi: '',
+        individualCharacterPrompts: [],
+        environmentPrompts: [],
+        scenePrompts: [],
+      });
+      const [productInfo, setProductInfo] = useState(null);
+      const [hasProductFlag, setHasProductFlag] = useState(false);
+      const [isScriptModifiedAfterGenerate, setIsScriptModifiedAfterGenerate] = useState(false);
+
+      const markScriptAsModified = () => {
+        if (maxStepReached >= 2) setIsScriptModifiedAfterGenerate(true);
+      };
+
+      const handleResetProject = () => {
+        setCurrentStep(0);
+        setMaxStepReached(1);
+        setRawIdea('');
+        setProjectData({
+          title: '',
+          characters: [],
+          scriptNarrative: '',
+          scenes: [],
+          style: 'Hiện thực',
+          aspectRatio: '9:16',
+          characterReferencePrompt: '',
+          characterReferencePromptVi: '',
+          individualCharacterPrompts: [],
+          environmentPrompts: [],
+          scenePrompts: [],
+        });
+        setProductInfo(null);
+        setHasProductFlag(false);
+        setErrorMsg(null);
+        setIsScriptModifiedAfterGenerate(false);
+      };
+
+      const handleGenerateScript = async (idea, hasProduct, productImage) => {
+        startLoading('Đang gửi ý tưởng tới Gemini AI để khởi tạo kịch bản...');
+        setErrorMsg(null);
+        setRawIdea(idea);
+        setHasProductFlag(hasProduct);
+        setProductInfo(productImage);
+
+        const timer = setTimeout(() => {
+          updateLoadingStatus('Đang cấu trúc tuyến nhân vật & phân cảnh chi tiết...');
+        }, 2500);
+
+        try {
+          const data = await generateScriptClient({
+            idea,
+            hasProduct,
+            productImage: productImage?.dataUrl || null,
+          });
+
+          setProjectData((prev) => ({
+            ...prev,
+            title: data.title || 'Dự án Video Script',
+            characters: data.characters || [],
+            scriptNarrative: data.scriptNarrative || '',
+            scenes: data.scenes || [],
+            characterReferencePrompt: '',
+            individualCharacterPrompts: [],
+            environmentPrompts: [],
+            scenePrompts: [],
+          }));
+
+          setCurrentStep(1);
+          setMaxStepReached((prev) => Math.max(prev, 1));
+          setIsScriptModifiedAfterGenerate(false);
+        } catch (err) {
+          console.error('Error in handleGenerateScript:', err);
+          setErrorMsg(err.message || 'Có lỗi xảy ra khi sinh kịch bản. Vui lòng thử lại.');
+        } finally {
+          clearTimeout(timer);
+          stopLoading();
+        }
+      };
+
+      const handleRegenerateFullScript = async () => {
+        startLoading('Đang gọi AI viết lại toàn bộ kịch bản mới...');
+        setErrorMsg(null);
+
+        const timer = setTimeout(() => {
+          updateLoadingStatus('Đang làm mới cốt truyện & danh sách phân cảnh...');
+        }, 2500);
+
+        try {
+          const data = await generateScriptClient({
+            idea: rawIdea,
+            hasProduct: hasProductFlag,
+            productImage: productInfo?.dataUrl || null,
+            isRegenerate: true,
+          });
+
+          setProjectData((prev) => ({
+            ...prev,
+            title: data.title || prev.title,
+            characters: data.characters || [],
+            scriptNarrative: data.scriptNarrative || '',
+            scenes: data.scenes || [],
+            characterReferencePrompt: '',
+            individualCharacterPrompts: [],
+            environmentPrompts: [],
+            scenePrompts: [],
+          }));
+
+          markScriptAsModified();
+        } catch (err) {
+          setErrorMsg(err.message || 'Không thể viết lại toàn bộ kịch bản. Vui lòng thử lại.');
+        } finally {
+          clearTimeout(timer);
+          stopLoading();
+        }
+      };
+
+      const handleRefineScriptWithAi = async (userRequest) => {
+        startLoading('Đang gửi yêu cầu điều chỉnh kịch bản tới AI...');
+        setErrorMsg(null);
+
+        const timer = setTimeout(() => {
+          updateLoadingStatus('Đang tinh chỉnh kịch bản theo phản hồi...');
+        }, 2000);
+
+        try {
+          const data = await refineScriptClient({
+            currentData: projectData,
+            userRequest,
+          });
+
+          setProjectData((prev) => ({
+            ...prev,
+            title: data.title || prev.title,
+            characters: data.characters || prev.characters,
+            scriptNarrative: data.scriptNarrative || prev.scriptNarrative,
+            scenes: data.scenes || prev.scenes,
+          }));
+
+          markScriptAsModified();
+        } catch (err) {
+          setErrorMsg(err.message || 'Không thể điều chỉnh kịch bản.');
+        } finally {
+          clearTimeout(timer);
+          stopLoading();
+        }
+      };
+
+      const handleGenerateReferencePrompts = async (overrideStyle, overrideRatio) => {
+        startLoading('Đang khởi tạo prompt tham chiếu nhân vật & môi trường...');
+        setErrorMsg(null);
+
+        const targetStyle = overrideStyle || projectData.style;
+        const targetRatio = overrideRatio || projectData.aspectRatio;
+
+        const timer = setTimeout(() => {
+          updateLoadingStatus('Đang chuẩn hóa dạng A-pose, nền trắng & sinh bản dịch song ngữ...');
+        }, 2500);
+
+        try {
+          const data = await generateReferencePromptsClient({
+            characters: projectData.characters,
+            scenes: projectData.scenes,
+            style: targetStyle,
+            aspectRatio: targetRatio,
+          });
+
+          setProjectData((prev) => ({
+            ...prev,
+            style: targetStyle,
+            aspectRatio: targetRatio,
+            characterReferencePrompt: data.characterReferencePrompt || '',
+            characterReferencePromptVi: data.characterReferencePromptVi || '',
+            individualCharacterPrompts: data.individualCharacterPrompts || [],
+            environmentPrompts: data.environmentPrompts || [],
+          }));
+
+          setIsScriptModifiedAfterGenerate(false);
+
+          if (currentStep === 1) {
+            setCurrentStep(2);
+            setMaxStepReached((prev) => Math.max(prev, 2));
+          }
+        } catch (err) {
+          setErrorMsg(err.message || 'Lỗi khi sinh prompt tham chiếu.');
+        } finally {
+          clearTimeout(timer);
+          stopLoading();
+        }
+      };
+
+      const handleGenerateScenePrompts = async () => {
+        startLoading('Đang tổng hợp kịch bản & khởi tạo prompt từng cảnh phim...');
+        setErrorMsg(null);
+
+        const timer = setTimeout(() => {
+          updateLoadingStatus('Đang phân chia Khối A (Ảnh tĩnh) & Khối B (Video chuyển động)...');
+        }, 2500);
+
+        try {
+          const data = await generateScenePromptsClient({
+            scenes: projectData.scenes,
+            characters: projectData.characters,
+            style: projectData.style,
+            aspectRatio: projectData.aspectRatio,
+            characterReferencePrompt: projectData.characterReferencePrompt,
+            environmentPrompts: projectData.environmentPrompts,
+          });
+
+          setProjectData((prev) => ({
+            ...prev,
+            scenePrompts: data.scenePrompts || [],
+          }));
+
+          setIsScriptModifiedAfterGenerate(false);
+          setCurrentStep(3);
+          setMaxStepReached(3);
+        } catch (err) {
+          setErrorMsg(err.message || 'Lỗi khi sinh prompt từng cảnh.');
+        } finally {
+          clearTimeout(timer);
+          stopLoading();
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-900 text-slate-100 font-sans antialiased">
+          <Header
+            currentStep={currentStep}
+            onStepClick={(step) => setCurrentStep(step)}
+            maxStepReached={maxStepReached}
+            customApiKey={customApiKey}
+            onApiKeyChange={handleApiKeyChange}
+          />
+
+          <ProgressBar
+            isLoading={isLoading}
+            progress={loadingProgress}
+            statusText={loadingStatus}
+          />
+
+          <main className="flex-1 transition-all duration-300">
+            {errorMsg && (
+              <div className="max-w-5xl mx-auto mt-4 px-4">
+                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-xs font-semibold flex items-center justify-between gap-3 shadow-lg">
+                  <span>{errorMsg}</span>
+                  <button onClick={() => setErrorMsg(null)} className="px-2.5 py-1 bg-rose-500/20 text-rose-200 rounded-lg text-xs">
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {currentStep === 0 && (
+              <Step0InputIdea
+                onGenerateScript={handleGenerateScript}
+                isLoading={isLoading}
+              />
+            )}
+
+            {currentStep === 1 && (
+              <Step1Script
+                projectData={projectData}
+                onUpdateProjectData={(newData) => {
+                  setProjectData(newData);
+                  markScriptAsModified();
+                }}
+                onRefineWithAi={handleRefineScriptWithAi}
+                onRegenerateFullScript={handleRegenerateFullScript}
+                onNextStep={() => handleGenerateReferencePrompts()}
+                isLoading={isLoading}
+              />
+            )}
+
+            {currentStep === 2 && (
+              <Step2ReferencePrompts
+                projectData={projectData}
+                onUpdateProjectData={(newData) => setProjectData(newData)}
+                onGenerateReferencePrompts={handleGenerateReferencePrompts}
+                onNextStep={handleGenerateScenePrompts}
+                isScriptModifiedAfterGenerate={isScriptModifiedAfterGenerate}
+                isLoading={isLoading}
+              />
+            )}
+
+            {currentStep === 3 && (
+              <Step3ScenePrompts
+                projectData={projectData}
+                onUpdateProjectData={(newData) => setProjectData(newData)}
+                onResetProject={handleResetProject}
+                onGenerateScenePrompts={handleGenerateScenePrompts}
+                isScriptModifiedAfterGenerate={isScriptModifiedAfterGenerate}
+                isLoading={isLoading}
+              />
+            )}
+          </main>
+
+          <footer className="px-6 py-3 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest mt-auto">
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <span>Gemini API Sẵn sàng</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                <span>Client-side Standalone App</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+              © 2024 Video Script Studio - Standalone Single File App
+            </p>
+          </footer>
+        </div>
+      );
+    }
+
+    const rootElement = document.getElementById('root');
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+  </script>
+</body>
+</html>
