@@ -101,7 +101,7 @@
         throw new Error('Chưa có Gemini API Key. Vui lòng bấm vào biểu tượng 🔑 ở góc trên bên phải để nhập API Key.');
       }
 
-      const models = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
+      const models = ['gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
       let lastError = null;
 
       for (const model of models) {
@@ -145,7 +145,7 @@
           if (!res.ok) {
             const errorJson = await res.json().catch(() => ({}));
             const errMsg = errorJson.error?.message || `Lỗi HTTP ${res.status}`;
-            throw new Error(`[${model}] ${errMsg}`);
+            throw new Error(errMsg);
           }
 
           const data = await res.json();
@@ -166,6 +166,11 @@
           lastError = err;
           console.warn(`Attempt with ${model} failed:`, err);
         }
+      }
+
+      const errStr = String(lastError?.message || lastError || '');
+      if (errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED') || errStr.includes('Quota exceeded') || errStr.includes('limit: 20')) {
+        throw new Error('Lượt gọi AI miễn phí tạm thời quá tải (Quota limit 429). Vui lòng thử lại sau 30-60 giây hoặc nhấn biểu tượng 🔑 ở góc trên bên phải để nhập API Key Gemini cá nhân của bạn.');
       }
 
       throw lastError || new Error('Không thể kết nối đến Gemini API. Vui lòng thử lại.');
@@ -617,8 +622,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       return (
-        <div className={`bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg transition-all hover:border-slate-600 ${className}`}>
-          <div className={`flex items-center justify-between gap-3 ${subtitle || badge ? 'mb-3 pb-3' : 'mb-2.5 pb-2.5'} border-b border-slate-700/80`}>
+        <div className={`bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg transition-all hover:border-slate-600 flex flex-col justify-between ${className}`}>
+          <div className={`flex items-center justify-between gap-3 ${subtitle || badge ? 'mb-3 pb-3' : 'mb-2.5 pb-2.5'} border-b border-slate-700/80 shrink-0`}>
             {subtitle || badge ? (
               <div>
                 <div className="flex items-center gap-2">
@@ -637,7 +642,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
             <button
               onClick={handleCopy}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shadow-md shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shadow-md shrink-0 cursor-pointer ${
                 copied ? 'bg-emerald-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
               }`}
             >
@@ -646,7 +651,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             </button>
           </div>
 
-          <div className="p-3.5 bg-slate-900/50 border border-slate-700 rounded-lg text-[11px] leading-relaxed text-slate-300 font-sans whitespace-pre-wrap select-all">
+          <div className="p-3.5 bg-slate-900/50 border border-slate-700 rounded-lg text-[11px] sm:text-xs leading-relaxed text-slate-300 font-sans whitespace-pre-wrap select-all max-h-52 sm:max-h-60 overflow-y-auto flex-1 mt-1">
             {displayText || promptText}
           </div>
         </div>
@@ -1479,7 +1484,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       return (
-        <div className="max-w-5xl mx-auto py-6 px-4 pb-28 space-y-8 relative">
+        <div className="max-w-[1200px] mx-auto py-6 px-4 sm:px-6 pb-28 space-y-6 sm:space-y-7 relative">
           {toast && (
             <div className={`fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-semibold ${
               toast.type === 'success' ? 'bg-slate-900 border-emerald-500/60 text-emerald-300' : 'bg-slate-900 border-rose-500/60 text-rose-300'
@@ -1501,7 +1506,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             </div>
           )}
 
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                 <Icons.Film className="w-5 h-5" />
@@ -1510,18 +1515,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                 <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                   Bước 3 — Prompt Ảnh Khởi Đầu & Prompt Video Từng Cảnh
                 </h2>
-                <p className="text-xs text-slate-400">Mỗi cảnh được chia làm 2 khối riêng biệt: Khối A (ảnh mở đầu) và Khối B (video chuyển động).</p>
+                <p className="text-xs text-slate-400">Mỗi cảnh được chia làm 2 khối riêng biệt: Khối A (tạo ảnh mở đầu) và Khối B (tạo chuyển động video từ ảnh).</p>
               </div>
             </div>
 
-            <div className="mt-4 p-3.5 bg-slate-900/60 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1.5">
+            <div className="mt-3.5 p-3.5 bg-slate-900/60 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1.5">
               <div className="font-semibold text-amber-400 flex items-center gap-1.5">
                 <Icons.Sparkles className="w-3.5 h-3.5" />
                 <span>Quy trình sử dụng chuẩn:</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
-                <li><strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram...).</li>
-                <li><strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô chuyển động.</li>
+                <li><strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram...) để tạo ảnh khung hình đầu tiên.</li>
+                <li><strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma, Pika...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô mô tả chuyển động.</li>
               </ol>
             </div>
           </div>
@@ -1529,8 +1534,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           {projectData.scenePrompts && projectData.scenePrompts.length > 0 ? (
             <div className="space-y-6">
               {projectData.scenePrompts.map((sp, idx) => (
-                <div key={idx} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
-                  <div className="border-b border-slate-700/80 pb-3.5 space-y-2">
+                <div key={idx} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4 hover:border-slate-600 transition-colors">
+                  <div className="border-b border-slate-700/80 pb-3 space-y-2">
                     <div className="flex items-center gap-3">
                       <span className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm shrink-0">
                         {sp.sceneNumber < 10 ? `0${sp.sceneNumber}` : sp.sceneNumber}
@@ -1538,7 +1543,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       <h3 className="font-bold text-slate-100 text-base sm:text-lg tracking-tight">{sp.sceneTitle}</h3>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs sm:text-sm text-slate-300 pl-11">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-slate-300 sm:pl-11">
                       <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700/80">
                         <span>📍</span>
                         <span className="font-medium text-slate-400">Địa điểm:</span>
@@ -1581,9 +1586,9 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                    <div className="flex flex-col space-y-2 h-full">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 uppercase tracking-widest shrink-0">
                         <Icons.ImageIcon className="w-4 h-4" />
                         <span>KHỐI A — PROMPT ẢNH KHỞI ĐẦU CẢNH</span>
                       </div>
@@ -1592,11 +1597,12 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                         promptText={sp.initialFramePrompt}
                         displayText={sp.initialFramePromptVi}
                         copyLabel="Sao chép prompt ảnh"
+                        className="flex-1"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-widest">
+                    <div className="flex flex-col space-y-2 h-full">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-widest shrink-0">
                         <Icons.Video className="w-4 h-4" />
                         <span>KHỐI B — PROMPT VIDEO CỦA CẢNH</span>
                       </div>
@@ -1605,6 +1611,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                         promptText={sp.videoPrompt}
                         displayText={sp.videoPromptVi}
                         copyLabel="Sao chép prompt video"
+                        className="flex-1"
                       />
                     </div>
                   </div>
