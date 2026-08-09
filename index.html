@@ -6,11 +6,19 @@
   <title>AI Studio - Tạo Video Script & Prompt</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & React DOM -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Babel for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- React & React DOM (Primary: cdnjs, Fallback: jsdelivr, unpkg) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script>window.React || document.write('<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"><\/script>')</script>
+  <script>window.React || document.write('<script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>')</script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script>window.ReactDOM || document.write('<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"><\/script>')</script>
+  <script>window.ReactDOM || document.write('<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>')</script>
+
+  <!-- Babel for JSX (Primary: cdnjs, Fallback: jsdelivr, unpkg) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+  <script>window.Babel || document.write('<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"><\/script>')</script>
+  <script>window.Babel || document.write('<script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>')</script>
   <style>
     /* Custom Scrollbar and Animations */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -20,21 +28,39 @@
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased selection:bg-indigo-500 selection:text-white">
-  <div id="root"></div>
+  <div id="root">
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:2rem; text-align:center; background:#0f172a; color:#cbd5e1; font-family:sans-serif;">
+      <div style="width:40px; height:40px; border:3px solid #6366f1; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:1rem;"></div>
+      <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+      <h2 style="font-size:1.125rem; font-weight:700; color:#fff; margin-bottom:0.5rem;">Đang khởi chạy Video Script Studio...</h2>
+      <p style="font-size:0.875rem; color:#94a3b8; max-width:500px; line-height:1.5;">
+        Nếu trang không hiển thị giao diện sau vài giây, vui lòng kiểm tra kết nối mạng Internet để trình duyệt nạp thư viện React từ CDN.
+      </p>
+    </div>
+  </div>
 
-  <script type="text/babel" data-presets="typescript,react">
+  <script type="text/babel" data-presets="react">
     const { useState, useEffect, useRef } = React;
 
     // --- LOCAL STORAGE API KEY MANAGEMENT ---
     function getStoredApiKey() {
-      return (localStorage.getItem('gemini_api_key') || '').trim();
+      try {
+        return (localStorage.getItem('gemini_api_key') || '').trim();
+      } catch (e) {
+        console.warn('LocalStorage not available:', e);
+        return '';
+      }
     }
     function saveApiKey(key) {
       const trimmed = (key || '').trim();
-      if (trimmed) {
-        localStorage.setItem('gemini_api_key', trimmed);
-      } else {
-        localStorage.removeItem('gemini_api_key');
+      try {
+        if (trimmed) {
+          localStorage.setItem('gemini_api_key', trimmed);
+        } else {
+          localStorage.removeItem('gemini_api_key');
+        }
+      } catch (e) {
+        console.warn('LocalStorage save failed:', e);
       }
     }
     function getEffectiveApiKey() {
@@ -424,7 +450,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       CheckCircle: (props) => <Icon {...props} path={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />,
       Key: (props) => <Icon {...props} path={<><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4a1 1 0 0 0-1.4 0l-2.1 2.1a1 1 0 0 0 0 1.4Z"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="16.5" r="4.5"/></>} />,
       X: (props) => <Icon {...props} path={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>} />,
-      Trash2: (props) => <Icon {...props} path={<><path d="3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
+      Trash2: (props) => <Icon {...props} path={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />,
       Copy: (props) => <Icon {...props} path={<><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></>} />,
       Check: (props) => <Icon {...props} path={<polyline points="20 6 9 17 4 12"/>} />,
       Sparkles: (props) => <Icon {...props} path={<><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></>} />,
@@ -1559,9 +1585,14 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
       const handleCopyAllVideoPrompts = async () => {
         try {
-          await navigator.clipboard.writeText(allVideoPromptsMergedEn);
-          setCopiedAll(true);
-          setTimeout(() => setCopiedAll(false), 2000);
+          const ok = await copyTextToClipboard(allVideoPromptsMergedEn);
+          if (ok) {
+            setCopiedAll(true);
+            setTimeout(() => setCopiedAll(false), 2000);
+            showToast('success', 'Đã sao chép toàn bộ prompt video!');
+          } else {
+            showToast('error', 'Không thể sao chép văn bản.');
+          }
         } catch (err) {
           console.error('Failed to copy all video prompts: ', err);
         }
