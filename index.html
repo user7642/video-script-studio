@@ -25,8 +25,24 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // --- EMBEDDED CONSTANTS & SAMPLES (data/samples.ts) ---
-    const EMBEDDED_API_KEY = 'AQ.Ab8RN6I677waNgEKJiCEQf5y_Diu4odfkmPQYpaundiMEpmAIw';
+    // --- LOCAL STORAGE API KEY MANAGEMENT ---
+    function getStoredApiKey() {
+      return (localStorage.getItem('gemini_api_key') || '').trim();
+    }
+    function saveApiKey(key) {
+      const trimmed = (key || '').trim();
+      if (trimmed) {
+        localStorage.setItem('gemini_api_key', trimmed);
+      } else {
+        localStorage.removeItem('gemini_api_key');
+      }
+    }
+    function getEffectiveApiKey() {
+      return getStoredApiKey();
+    }
+    function setSessionApiKey(key) {
+      saveApiKey(key);
+    }
 
     const SAMPLE_IDEAS = [
       {
@@ -78,21 +94,11 @@
       { value: "4:3", label: "4:3 (Màn ảnh cổ điển)", desc: "Khung hình vuông chuẩn điện ảnh xưa" },
     ];
 
-    // --- SESSION API KEY MANAGEMENT ---
-    let globalSessionApiKey = '';
-    function setSessionApiKey(key) {
-      globalSessionApiKey = (key || '').trim();
-    }
-    function getEffectiveApiKey() {
-      if (globalSessionApiKey) return globalSessionApiKey;
-      return localStorage.getItem('gemini_api_key') || EMBEDDED_API_KEY;
-    }
-
     // --- GEMINI DIRECT CLIENT CALL (lib/clientGemini.ts & server.ts logic) ---
     async function callGeminiJson(promptText, imageBase64 = null, systemInstructionText = null) {
       const apiKey = getEffectiveApiKey();
       if (!apiKey) {
-        throw new Error('Thiếu Gemini API Key. Vui lòng kiểm tra lại cấu hình.');
+        throw new Error('Chưa có Gemini API Key. Vui lòng bấm vào biểu tượng 🔑 ở góc trên bên phải để nhập API Key.');
       }
 
       const models = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest'];
@@ -523,7 +529,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                         <Icons.Key className="w-4 h-4 text-amber-400" />
                         <div>
                           <h3 className="font-semibold text-xs text-white">Tùy chỉnh Gemini API Key</h3>
-                          <p className="text-[10px] text-slate-400">Phiên làm việc hiện tại</p>
+                          <p className="text-[10px] text-slate-400">Đã lưu trên trình duyệt này</p>
                         </div>
                       </div>
                       <button onClick={() => setIsKeyPopoverOpen(false)} className="p-1 text-slate-400 hover:text-white">
@@ -533,7 +539,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
                     <div className="space-y-3">
                       <p className="text-[11px] text-slate-300">
-                        Nhập API key của bạn để ưu tiên sử dụng cho mọi lệnh gọi Gemini AI.
+                        Nhập Gemini API Key của bạn. Key sẽ được lưu an toàn trên trình duyệt này (localStorage) để tự động sử dụng cho các lần sau.
                       </p>
                       <div className="relative">
                         <input
@@ -551,9 +557,9 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
                         {customApiKey ? (
-                          <span className="text-amber-400 font-medium">• Đang dùng key tùy chỉnh</span>
+                          <span className="text-amber-400 font-medium">• ✓ Đã lưu trên trình duyệt này</span>
                         ) : (
-                          <span className="text-slate-400">• Đang dùng key mặc định</span>
+                          <span className="text-rose-400">• ⚠️ Chưa có API Key</span>
                         )}
                         <button onClick={() => setIsKeyPopoverOpen(false)} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-medium">
                           Xong
@@ -1620,16 +1626,30 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       const [loadingProgress, setLoadingProgress] = useState(0);
       const [loadingStatus, setLoadingStatus] = useState('');
       const [errorMsg, setErrorMsg] = useState(null);
-      const [customApiKey, setCustomApiKey] = useState('');
+      const [customApiKey, setCustomApiKey] = useState(() => getStoredApiKey());
 
       const handleApiKeyChange = (key) => {
-        setCustomApiKey(key);
-        setSessionApiKey(key);
+        const trimmed = (key || '').trim();
+        setCustomApiKey(trimmed);
+        saveApiKey(trimmed);
+        if (trimmed) setErrorMsg(null);
+      };
+
+      const ensureApiKeyOrShowError = () => {
+        const key = getStoredApiKey();
+        if (!key) {
+          setErrorMsg('Chưa có Gemini API Key. Vui lòng bấm vào biểu tượng 🔑 ở góc trên bên phải để nhập API Key trước khi sử dụng.');
+          return false;
+        }
+        return true;
       };
 
       const progressIntervalRef = useRef(null);
 
       useEffect(() => {
+        if (!getStoredApiKey()) {
+          setErrorMsg('Chưa có Gemini API Key. Vui lòng bấm vào biểu tượng 🔑 ở góc trên bên phải để nhập API Key trước khi sử dụng.');
+        }
         return () => { if (progressIntervalRef.current) clearInterval(progressIntervalRef.current); };
       }, []);
 
@@ -1708,6 +1728,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const handleGenerateScript = async (idea, hasProduct, productImage) => {
+        if (!ensureApiKeyOrShowError()) return;
         startLoading('Đang gửi ý tưởng tới Gemini AI để khởi tạo kịch bản...');
         setErrorMsg(null);
         setRawIdea(idea);
@@ -1750,6 +1771,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const handleRegenerateFullScript = async () => {
+        if (!ensureApiKeyOrShowError()) return;
         startLoading('Đang gọi AI viết lại toàn bộ kịch bản mới...');
         setErrorMsg(null);
 
@@ -1787,6 +1809,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const handleRefineScriptWithAi = async (userRequest) => {
+        if (!ensureApiKeyOrShowError()) return;
         startLoading('Đang gửi yêu cầu điều chỉnh kịch bản tới AI...');
         setErrorMsg(null);
 
@@ -1818,6 +1841,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const handleGenerateReferencePrompts = async (overrideStyle, overrideRatio) => {
+        if (!ensureApiKeyOrShowError()) return;
         startLoading('Đang khởi tạo prompt tham chiếu nhân vật & môi trường...');
         setErrorMsg(null);
 
@@ -1861,6 +1885,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const handleGenerateScenePrompts = async () => {
+        if (!ensureApiKeyOrShowError()) return;
         startLoading('Đang tổng hợp kịch bản & khởi tạo prompt từng cảnh phim...');
         setErrorMsg(null);
 
