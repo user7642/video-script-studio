@@ -617,20 +617,27 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       return (
-        <div className={`bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg transition-all hover:border-slate-600 ${className}`}>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <h4 className="font-semibold text-slate-100 text-sm">{title}</h4>
-              {badge && (
-                <span className={`text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md border ${badgeColors[badgeColor]}`}>
-                  {badge}
-                </span>
-              )}
-            </div>
+        <div className={`bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg transition-all hover:border-slate-600 ${className}`}>
+          <div className={`flex items-center justify-between gap-3 ${subtitle || badge ? 'mb-3 pb-3' : 'mb-2.5 pb-2.5'} border-b border-slate-700/80`}>
+            {subtitle || badge ? (
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-slate-100 text-sm sm:text-base">{title}</h4>
+                  {badge && (
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeColors[badgeColor] || badgeColors.purple}`}>
+                      {badge}
+                    </span>
+                  )}
+                </div>
+                {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+              </div>
+            ) : (
+              <h4 className="font-bold text-slate-100 text-sm sm:text-base">{title}</h4>
+            )}
 
             <button
               onClick={handleCopy}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shadow-md ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all shadow-md shrink-0 ${
                 copied ? 'bg-emerald-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
               }`}
             >
@@ -638,8 +645,6 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
               <span>{copied ? 'Đã sao chép!' : copyLabel}</span>
             </button>
           </div>
-
-          {subtitle && <p className="text-xs text-slate-400 mb-3">{subtitle}</p>}
 
           <div className="p-3.5 bg-slate-900/50 border border-slate-700 rounded-lg text-[11px] leading-relaxed text-slate-300 font-sans whitespace-pre-wrap select-all">
             {displayText || promptText}
@@ -1580,15 +1585,12 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
                         <Icons.ImageIcon className="w-4 h-4" />
-                        <span>Khối A — Prompt Ảnh Khởi Đầu Cảnh</span>
+                        <span>KHỐI A — PROMPT ẢNH KHỞI ĐẦU CẢNH</span>
                       </div>
                       <PromptCard
-                        title="Prompt tạo ảnh tĩnh mở đầu cảnh"
-                        subtitle="Mô tả ngoại hình + bối cảnh + tư thế mở đầu"
+                        title="Prompt tạo ảnh"
                         promptText={sp.initialFramePrompt}
                         displayText={sp.initialFramePromptVi}
-                        badge="Khối A (Image)"
-                        badgeColor="indigo"
                         copyLabel="Sao chép prompt ảnh"
                       />
                     </div>
@@ -1596,15 +1598,12 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-widest">
                         <Icons.Video className="w-4 h-4" />
-                        <span>Khối B — Prompt Video Của Cảnh</span>
+                        <span>KHỐI B — PROMPT VIDEO CỦA CẢNH</span>
                       </div>
                       <PromptCard
-                        title="Prompt dán kèm ảnh vào AI Video"
-                        subtitle="Tả diễn biến hành động liền mạch • Đúng thoại"
+                        title="Prompt video"
                         promptText={sp.videoPrompt}
                         displayText={sp.videoPromptVi}
-                        badge="Khối B (Video)"
-                        badgeColor="amber"
                         copyLabel="Sao chép prompt video"
                       />
                     </div>
