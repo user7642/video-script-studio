@@ -471,70 +471,56 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       ImageIcon: (props) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></>} />,
       Video: (props) => <Icon {...props} path={<><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></>} />,
       Layers: (props) => <Icon {...props} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></>} />,
-      XCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></>} />
+      XCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></>} />,
+      MoreHorizontal: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></>} />
     };
 
     // --- COMPONENT: HEADER ---
     const Header = ({ currentStep, onStepClick, maxStepReached, customApiKey, onApiKeyChange, onResetProject, hasSavedProject }) => {
       const [isKeyPopoverOpen, setIsKeyPopoverOpen] = useState(false);
+      const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
       const steps = [
-        { num: 1, label: "Kịch bản", sub: "Ý tưởng & Nhân vật" },
-        { num: 2, label: "Tham chiếu", sub: "Nhân vật & Môi trường" },
-        { num: 3, label: "Prompt cảnh", sub: "Ảnh & Video từng cảnh" }
+        { num: 1, label: "Kịch bản" },
+        { num: 2, label: "Tham chiếu" },
+        { num: 3, label: "Prompt cảnh" }
       ];
 
       return (
-        <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16 gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-indigo-500/20">
-                  AI
+        <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-slate-100 shadow-md">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3">
+            {/* Top Header Row */}
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              {/* Brand Logo & Title */}
+              <div 
+                className="flex items-center gap-2 sm:gap-3 cursor-pointer shrink-0" 
+                onClick={() => onStepClick(0)}
+              >
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm sm:text-base shadow-md shadow-indigo-500/20 shrink-0">
+                  VS
                 </div>
                 <div>
-                  <h1 className="font-bold text-base text-white tracking-tight flex items-center gap-2">
-                    Video Script Studio
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-                      Standalone
+                  <div className="flex items-center gap-2">
+                    <h1 className="font-bold text-sm sm:text-base text-white tracking-tight whitespace-nowrap">
+                      Video Script Studio
+                    </h1>
+                    <span className="hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 whitespace-nowrap">
+                      v2.0 Standalone
                     </span>
-                  </h1>
-                  <p className="text-xs text-slate-400 hidden sm:block">Chuyển ý tưởng thành bộ Prompt AI Video chuẩn</p>
+                  </div>
+                  <p className="text-[11px] text-slate-400 hidden md:block">Chuyển ý tưởng thành bộ Prompt AI Video chuẩn</p>
                 </div>
               </div>
 
-              {currentStep > 0 && (
-                <nav className="hidden md:flex items-center gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/80">
-                  {steps.map((step) => {
-                    const isPassed = step.num <= maxStepReached;
-                    const isCurrent = currentStep === step.num;
+              {/* Right Action Buttons */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                {/* Desktop Status Badge */}
+                <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Gemini Direct API</span>
+                </div>
 
-                    return (
-                      <button
-                        key={step.num}
-                        onClick={() => isPassed && onStepClick(step.num)}
-                        disabled={!isPassed}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                          isCurrent
-                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                            : isPassed
-                            ? "text-slate-300 hover:text-white hover:bg-slate-700/60"
-                            : "text-slate-600 cursor-not-allowed"
-                        }`}
-                      >
-                        <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-bold ${
-                          isCurrent ? "bg-white/20 text-white" : isPassed ? "bg-slate-700 text-slate-300" : "bg-slate-800 text-slate-600"
-                        }`}>
-                          {isPassed && !isCurrent ? <Icons.CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : step.num}
-                        </span>
-                        <span>{step.label}</span>
-                      </button>
-                    );
-                  })}
-                </nav>
-              )}
-
-              <div className="flex items-center gap-2 shrink-0 relative">
+                {/* Reset Project Button */}
                 {onResetProject && (currentStep > 0 || hasSavedProject) && (
                   <button
                     onClick={() => {
@@ -543,80 +529,183 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       }
                     }}
                     title="Xóa dự án hiện tại và bắt đầu lại từ đầu"
-                    className="px-3 py-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm"
+                    className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 text-rose-300 text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer shrink-0 shadow-sm"
                   >
-                    <Icons.Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                    <span className="hidden sm:inline">🗑️ Xóa dự án, bắt đầu lại</span>
-                    <span className="sm:hidden">Làm lại</span>
+                    <Icons.Trash2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span className="text-[11px] sm:text-xs">Xóa dự án</span>
                   </button>
                 )}
 
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Gemini Direct API</span>
+                {/* API Key Config Button */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setIsKeyPopoverOpen(!isKeyPopoverOpen);
+                      setIsMoreMenuOpen(false);
+                    }}
+                    title={customApiKey ? "Đang dùng Gemini API Key tùy chỉnh" : "Cấu hình Gemini API Key tùy chỉnh"}
+                    className={`p-1.5 sm:p-2 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                      customApiKey
+                        ? "bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30 shadow-sm shadow-amber-500/20"
+                        : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700"
+                    }`}
+                  >
+                    <Icons.Key className={`w-4 h-4 ${customApiKey ? "text-amber-400" : "text-slate-300"}`} />
+                    {customApiKey && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    )}
+                  </button>
                 </div>
 
+                {/* Mobile "⋯" More Options Button */}
                 <button
-                  onClick={() => setIsKeyPopoverOpen(!isKeyPopoverOpen)}
-                  title={customApiKey ? "Đang dùng Gemini API Key tùy chỉnh" : "Cấu hình Gemini API Key tùy chỉnh"}
-                  className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                    customApiKey
-                      ? "bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30"
-                      : "bg-slate-700/60 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
-                  }`}
+                  onClick={() => {
+                    setIsMoreMenuOpen(!isMoreMenuOpen);
+                    setIsKeyPopoverOpen(false);
+                  }}
+                  title="Xem thêm thông tin"
+                  className="sm:hidden p-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all cursor-pointer"
                 >
-                  <Icons.Key className={`w-4 h-4 ${customApiKey ? "text-amber-400" : "text-slate-300"}`} />
-                  {customApiKey && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>}
+                  <Icons.MoreHorizontal className="w-4 h-4" />
                 </button>
-
-                {isKeyPopoverOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-100">
-                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <Icons.Key className="w-4 h-4 text-amber-400" />
-                        <div>
-                          <h3 className="font-semibold text-xs text-white">Tùy chỉnh Gemini API Key</h3>
-                          <p className="text-[10px] text-slate-400">Đã lưu trên trình duyệt này</p>
-                        </div>
-                      </div>
-                      <button onClick={() => setIsKeyPopoverOpen(false)} className="p-1 text-slate-400 hover:text-white">
-                        <Icons.X className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      <p className="text-[11px] text-slate-300">
-                        Nhập Gemini API Key của bạn. Key sẽ được lưu an toàn trên trình duyệt này (localStorage) để tự động sử dụng cho các lần sau.
-                      </p>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={customApiKey}
-                          onChange={(e) => onApiKeyChange(e.target.value)}
-                          placeholder="Dán Gemini API Key tại đây..."
-                          className="w-full px-3 py-2 pr-8 bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl text-xs font-mono text-slate-100 focus:outline-none"
-                        />
-                        {customApiKey && (
-                          <button onClick={() => onApiKeyChange('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400">
-                            <Icons.Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between text-[11px]">
-                        {customApiKey ? (
-                          <span className="text-amber-400 font-medium">• ✓ Đã lưu trên trình duyệt này</span>
-                        ) : (
-                          <span className="text-rose-400">• ⚠️ Chưa có API Key</span>
-                        )}
-                        <button onClick={() => setIsKeyPopoverOpen(false)} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-medium">
-                          Xong
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
+
+            {/* Mobile Dropdown Menu for "⋯" */}
+            {isMoreMenuOpen && (
+              <div className="sm:hidden mt-2 p-3 bg-slate-800 border border-slate-700 rounded-xl shadow-xl space-y-2 text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-700">
+                  <span className="text-slate-400 font-medium">Thông tin ứng dụng</span>
+                  <button onClick={() => setIsMoreMenuOpen(false)} className="text-slate-400 hover:text-white">
+                    <Icons.X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">Phiên bản:</span>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-bold">
+                    v2.0 Standalone
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-300">Trạng thái AI:</span>
+                  <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Gemini Direct API</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* API Key Popover Panel */}
+            {isKeyPopoverOpen && (
+              <div className="mt-2.5 sm:mt-0 sm:absolute sm:right-6 sm:top-14 w-full sm:w-96 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-100">
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-700">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <Icons.Key className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xs text-white">Tùy chỉnh Gemini API Key</h3>
+                      <p className="text-[10px] text-slate-400">Đã lưu trên trình duyệt này</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsKeyPopoverOpen(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                  >
+                    <Icons.X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Nhập Gemini API Key của bạn. Key sẽ được lưu an toàn trên trình duyệt này (localStorage) để sử dụng cho các lần sau.
+                  </p>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={customApiKey}
+                      onChange={(e) => onApiKeyChange(e.target.value)}
+                      placeholder="Dán Gemini API Key của bạn tại đây..."
+                      className="w-full px-3 py-2 pr-8 bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none"
+                      autoFocus
+                    />
+                    {customApiKey && (
+                      <button
+                        onClick={() => onApiKeyChange('')}
+                        title="Xóa key"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400"
+                      >
+                        <Icons.Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-between text-[11px]">
+                    {customApiKey ? (
+                      <span className="text-amber-400 font-medium flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                        ✓ Đã lưu trên trình duyệt
+                      </span>
+                    ) : (
+                      <span className="text-rose-400 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                        ⚠️ Chưa có API Key
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => setIsKeyPopoverOpen(false)}
+                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium"
+                    >
+                      Xong
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3-Step Stepper Progress Bar */}
+            {currentStep > 0 && (
+              <nav className="mt-2.5 sm:mt-3 bg-slate-800/90 sm:bg-slate-900/60 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl border border-slate-700/80">
+                <div className="flex items-center justify-between gap-1 sm:gap-2 w-full">
+                  {steps.map((stepItem, index) => {
+                    const isActive = currentStep === stepItem.num;
+                    const isCompleted = maxStepReached > stepItem.num;
+                    const isAccessible = stepItem.num <= maxStepReached;
+
+                    return (
+                      <React.Fragment key={stepItem.num}>
+                        {index > 0 && (
+                          <div className={`flex-1 h-[2px] min-w-[8px] sm:min-w-[16px] transition-colors ${isCompleted || isActive ? 'bg-indigo-500' : 'bg-slate-700'}`} />
+                        )}
+                        <button
+                          onClick={() => isAccessible && onStepClick(stepItem.num)}
+                          disabled={!isAccessible}
+                          className={`flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+                            isActive
+                              ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/30"
+                              : isCompleted
+                              ? "text-slate-200 hover:text-white hover:bg-slate-700/60"
+                              : "text-slate-500 cursor-not-allowed opacity-50"
+                          }`}
+                        >
+                          <span className={`w-4 h-4 sm:w-5 sm:h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                            isActive ? "bg-white/20 text-white" : isCompleted ? "bg-slate-700 text-emerald-400" : "bg-slate-800 text-slate-500"
+                          }`}>
+                            {isCompleted && !isActive ? <Icons.CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400" /> : stepItem.num}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-semibold whitespace-nowrap">
+                            {stepItem.label}
+                          </span>
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </nav>
+            )}
           </div>
         </header>
       );
