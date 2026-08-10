@@ -214,7 +214,7 @@ ${isRegenerate ? "- YÊU CẦU LÀM MỚI: Viết cốt truyện & tuyến nhân
 ### NHIỆM VỤ
 1. Tiêu đề (title): Tên dự án hấp dẫn, ngắn gọn.
 2. Nhân vật (characters): Khai báo danh sách nhân vật (id, name, age, role, appearance [mô tả chi tiết khuôn mặt, dáng người, kiểu tóc, trang phục], personality).
-3. Kịch bản văn xuôi (scriptNarrative): Viết văn bản tường thuật liền mạch bối cảnh, hành động, tâm lý, biểu cảm và lời thoại.
+3. Kịch bản văn xuôi (scriptNarrative): Viết văn bản tường thuật liền mạch, đọc như một câu chuyện ngắn. BẮT BUỘC phải có lời thoại trực tiếp của nhân vật, lồng tự nhiên vào trong dòng chảy câu chuyện (dùng dấu ngoặc kép, đặt đúng ngữ cảnh khi nhân vật nói) — không chỉ tường thuật/tóm tắt hành động mà không có câu thoại cụ thể nào.
 4. Cảnh phim (scenes): Phân chia kịch bản thành danh sách cảnh (sceneNumber, title, location, charactersPresent, summary, dialogueAndAction).
 
 ### CẤU TRÚC JSON ĐẦU RA
@@ -391,7 +391,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
    - 'initialFramePromptVi' (tiếng Việt): Bản dịch tiếng Việt sát nghĩa tương ứng để hiển thị UI.
 
 2. KHỐI B — PROMPT VIDEO (IMAGE-TO-VIDEO MOTION PROMPT):
-   - 'videoPrompt' (tiếng Anh): Đoạn văn xuôi tiếng Anh liền mạch mô tả chuyển động và diễn biến hành động từ đầu đến cuối cảnh. KHÔNG lặp lại mô tả ngoại hình hay bối cảnh. Kết thúc bằng: "Do not add any text, icons, or symbols (including shopping cart icons) into the video."
+   - 'videoPrompt' (tiếng Anh): Đoạn văn xuôi tiếng Anh liền mạch mô tả đầy đủ 4 thành phần: hành động, chuyển động, biểu cảm, VÀ LỜI THOẠI của nhân vật — lấy đúng lời thoại đã có trong trường dialogueAndAction của cảnh đó (dữ liệu đầu vào), đặt lời thoại vào đúng vị trí xảy ra trong diễn biến, dùng định dạng dẫn lời tự nhiên (ví dụ: character says: "..." hoặc while saying: "...") — KHÔNG được bỏ qua lời thoại nếu dữ liệu cảnh đó đã có sẵn. KHÔNG lặp lại mô tả ngoại hình hay bối cảnh. Kết thúc bằng: "Do not add any text, icons, or symbols (including shopping cart icons) into the video."
    - 'videoPromptVi' (tiếng Việt): Bản dịch tiếng Việt sát nghĩa tương ứng của 'videoPrompt' để hiển thị UI. Kết thúc bằng: "Không chèn thêm bất kỳ chữ, icon, hay biểu tượng nào (kể cả icon giỏ hàng) vào video."
 
 3. TRƯỜNG "LOCATION" CỦA MỖI CẢNH:
