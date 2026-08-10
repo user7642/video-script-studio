@@ -304,9 +304,127 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       return result;
     }
 
+    // Helper to remove Vietnamese diacritics / tones
+    function removeVietnameseTones(str) {
+      if (!str) return '';
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D');
+    }
+
+    function formatIndividualPrompt(ind, includeNameTags, idx = 0) {
+      const rawName = ind.characterName || `Nhân vật ${idx + 1}`;
+      const cleanName = removeVietnameseTones(rawName);
+
+      let promptEn = ind.prompt || '';
+      let promptVi = ind.promptVi || '';
+
+      const tagTextEn = `with a clear text label under feet displaying "${cleanName}"`;
+      const tagTextVi = `dưới chân có in nhãn tên "${cleanName}"`;
+
+      if (includeNameTags) {
+        if (/with a clear text label under feet displaying "[^"]*"/i.test(promptEn)) {
+          promptEn = promptEn.replace(/with a clear text label under feet displaying "[^"]*"/gi, tagTextEn);
+        } else if (/no text/i.test(promptEn)) {
+          promptEn = promptEn.replace(/no text/i, tagTextEn);
+        } else if (/Style:/i.test(promptEn)) {
+          promptEn = promptEn.replace(/Style:/i, `${tagTextEn}. Style:`);
+        } else if (/--ar/i.test(promptEn)) {
+          promptEn = promptEn.replace(/--ar/i, `${tagTextEn}, --ar`);
+        } else {
+          promptEn = `${promptEn.trim()} ${tagTextEn}.`;
+        }
+
+        if (/dưới chân có in nhãn tên "[^"]*"/i.test(promptVi)) {
+          promptVi = promptVi.replace(/dưới chân có in nhãn tên "[^"]*"/gi, tagTextVi);
+        } else if (/không chữ/i.test(promptVi)) {
+          promptVi = promptVi.replace(/không chữ/i, tagTextVi);
+        } else if (/Phong cách:/i.test(promptVi)) {
+          promptVi = promptVi.replace(/Phong cách:/i, `${tagTextVi}. Phong cách:`);
+        } else if (/--ar/i.test(promptVi)) {
+          promptVi = promptVi.replace(/--ar/i, `${tagTextVi}, --ar`);
+        } else {
+          promptVi = `${promptVi.trim()} ${tagTextVi}.`;
+        }
+      } else {
+        if (/with a clear text label under feet displaying "[^"]*"/i.test(promptEn)) {
+          promptEn = promptEn.replace(/with a clear text label under feet displaying "[^"]*"/gi, 'no text');
+        }
+        promptEn = promptEn.replace(/\(label: "[^"]*"\)/gi, '').replace(/\s+/g, ' ').replace(/,\s*,/g, ',').trim();
+
+        if (/dưới chân có in nhãn tên "[^"]*"/i.test(promptVi)) {
+          promptVi = promptVi.replace(/dưới chân có in nhãn tên "[^"]*"/gi, 'không chữ');
+        }
+        promptVi = promptVi.replace(/\(nhãn: "[^"]*"\)/gi, '').replace(/\s+/g, ' ').replace(/,\s*,/g, ',').trim();
+      }
+
+      return {
+        ...ind,
+        prompt: promptEn,
+        promptVi: promptVi,
+      };
+    }
+
+    // Synthesize Group Character Reference Prompt (GRP-REF) from Individual Character Prompts (IND-REF)
+    function buildGroupCharacterPrompt(params) {
+      const { characters, individualCharacterPrompts, style, includeNameTags = true } = params;
+
+      if (!individualCharacterPrompts || individualCharacterPrompts.length === 0) {
+        return { prompt: '', promptVi: '' };
+      }
+
+      const indListEn = individualCharacterPrompts
+        .map((ind, idx) => {
+          const charObj = (characters || []).find((c) => c.id === ind.characterId || c.name === ind.characterName);
+          const rawName = ind.characterName || charObj?.name || `Character ${idx + 1}`;
+          const cleanName = removeVietnameseTones(rawName);
+          const cleanPromptText = ind.prompt
+            ? ind.prompt.replace(/Style:.*$/i, '').replace(/--ar.*$/i, '').replace(/A-pose.*$/i, '').trim()
+            : (charObj?.appearance || '');
+
+          return `${idx + 1}. ${rawName}${includeNameTags ? ` (label: "${cleanName}")` : ''}: ${cleanPromptText}`;
+        })
+        .join('\n');
+
+      const namesListCleanEn = individualCharacterPrompts
+        .map((ind) => `"${removeVietnameseTones(ind.characterName)}"`)
+        .join(', ');
+
+      const promptEn = `Group character reference sheet featuring all ${individualCharacterPrompts.length} characters standing side by side:\n${indListEn}\n\nAll characters standing in A-pose full body shot from head to toe, facing camera, neutral relaxed facial expression, plain solid white studio background. ${
+        includeNameTags
+          ? `Each character must have a clear text label under their feet displaying their name: ${namesListCleanEn}. No other text, watermark, or logo.`
+          : `No text, no watermark, no logo, no props.`
+      } Style: ${style}, --ar 16:9`;
+
+      const indListVi = individualCharacterPrompts
+        .map((ind, idx) => {
+          const charObj = (characters || []).find((c) => c.id === ind.characterId || c.name === ind.characterName);
+          const rawName = ind.characterName || charObj?.name || `Nhân vật ${idx + 1}`;
+          const cleanName = removeVietnameseTones(rawName);
+          const cleanPromptVi = ind.promptVi || charObj?.appearance || '';
+
+          return `${idx + 1}. ${rawName}${includeNameTags ? ` (nhãn: "${cleanName}")` : ''}: ${cleanPromptVi}`;
+        })
+        .join('\n');
+
+      const namesListCleanVi = individualCharacterPrompts
+        .map((ind) => `"${removeVietnameseTones(ind.characterName)}"`)
+        .join(', ');
+
+      const promptVi = `Ảnh tham chiếu gộp cho tất cả ${individualCharacterPrompts.length} nhân vật đứng hàng ngang:\n${indListVi}\n\nTất cả nhân vật đứng ở tư thế A-pose toàn thân từ đầu đến chân, nhìn thẳng máy ảnh, biểu cảm trung tính thư giãn, phông nền trắng trơn studio. ${
+        includeNameTags
+          ? `Dưới chân mỗi nhân vật có in nhãn tên rõ ràng: ${namesListCleanVi}. Không có bất kỳ chữ nào khác, không watermark, không logo.`
+          : `Không chữ, không watermark, không logo, không đạo cụ.`
+      } Phong cách: ${style}, --ar 16:9`;
+
+      return { prompt: promptEn, promptVi: promptVi };
+    }
+
     // 3. Generate Reference Prompts
     async function generateReferencePromptsClient(params) {
-      const { characters, scenes, style, aspectRatio } = params;
+      const { characters, scenes, style, aspectRatio, includeNameTags = true } = params;
       const promptText = `
 ### DỮ LIỆU ĐẦU VÀO
 - Danh sách nhân vật: ${JSON.stringify(characters, null, 2)}
@@ -316,15 +434,19 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
 ### QUY TẮC BẮT BUỘC
 1. ĐỊNH DẠNG SONG NGỮ ANH - VIỆT:
-   - Bản tiếng Anh (characterReferencePrompt, prompt): Tiếng Anh chuẩn, chi tiết, tối ưu cho AI Image Generator (Midjourney, Flux, Ideogram...).
-   - Bản tiếng Việt (characterReferencePromptVi, promptVi): Dịch sát nghĩa, tự nhiên để hiển thị UI.
+   - Bản tiếng Anh (prompt): Tiếng Anh chuẩn, chi tiết, tối ưu cho AI Image Generator (Midjourney, Flux, Ideogram...).
+   - Bản tiếng Việt (promptVi): Dịch sát nghĩa, tự nhiên để hiển thị UI.
 
 2. QUỐC TỊCH / DÂN TỘC NHÂN VẬT:
    - Nêu rõ quốc tịch/dân tộc trong mô tả ngoại hình (mặc định "Vietnamese / người Việt Nam", trừ khi có chỉ định khác).
 
-3. KHÓA NGOẠI HÌNH TRUNG LẬP (MẪU GỘP & CÁ NHÂN):
-   - Tư thế: Chuẩn "A-pose" toàn thân từ đầu đến chân (standing in A-pose with arms slightly angled down forming an A-shape, full front view, facing camera, full body character reference sheet from head to toe).
-   - Phông nền: Nền trắng trơn studio (plain seamless solid white background, uniform studio lighting, soft shadows).
+3. KHÓA NGOẠI HÌNH TRUNG LẬP TỪNG NHÂN VẬT (INDIVIDUAL CHARACTER PROMPTS):
+   - ĐÂY LÀ ẢNH MẪU KHÓA NGOẠI HÌNH TỪNG NHÂN VẬT, KHÔNG PHẢI BỐI CẢNH KỊCH BẢN.
+   - Với MỖI nhân vật trong danh sách nhân vật ở trên, tạo 1 prompt ảnh mẫu riêng mô tả chi tiết nhân vật đó.
+   - Tư thế: Chuẩn "A-pose" toàn thân từ đầu đến chân (standing in A-pose, full front view, facing camera, full body character reference sheet from head to toe).
+   - Biểu cảm: Trung tính, thư giãn tự nhiên (neutral, relaxed expression). KHÔNG tả nụ cười hay cảm xúc.
+   - Phông nền: Nền trắng trơn studio (plain seamless solid white background, uniform studio lighting). KHÔNG bối cảnh hay nội thất.
+   - Cấm: Không cầm đạo cụ, không tương tác, KHÔNG chữ, watermark, logo.
    - Cú pháp kết thúc chuỗi tiếng Anh: "A-pose, full body character reference sheet, neutral relaxed expression, no text, no watermark, no logo, no props, plain white background. Style: ${style}, --ar ${aspectRatio}".
 
 4. PROMPT MÔI TRƯỜNG (ENVIRONMENT PROMPTS):
@@ -333,8 +455,6 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
 ### CẤU TRÚC JSON ĐẦU RA
 {
-  "characterReferencePrompt": "Full body character sheet in English ending with A-pose, full body character reference sheet, neutral relaxed expression, no text, no watermark, no logo, no props, plain white background. Style: ${style}, --ar ${aspectRatio}",
-  "characterReferencePromptVi": "Bản dịch tiếng Việt mô tả tất cả nhân vật...",
   "individualCharacterPrompts": [
     {
       "characterId": "char_1",
@@ -355,12 +475,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 `;
       const result = await callGeminiJson(promptText);
       if (result.individualCharacterPrompts) {
-        result.individualCharacterPrompts = result.individualCharacterPrompts.map((ic, index) => ({
-          characterId: ic.characterId || characters[index]?.id || `char_${index + 1}`,
-          characterName: ic.characterName || characters[index]?.name || `Nhân vật ${index + 1}`,
-          prompt: ic.prompt || "",
-          promptVi: ic.promptVi || "",
-        }));
+        result.individualCharacterPrompts = result.individualCharacterPrompts.map((ic, index) =>
+          formatIndividualPrompt(
+            {
+              characterId: ic.characterId || characters[index]?.id || `char_${index + 1}`,
+              characterName: ic.characterName || characters[index]?.name || `Nhân vật ${index + 1}`,
+              prompt: ic.prompt || "",
+              promptVi: ic.promptVi || "",
+            },
+            includeNameTags,
+            index
+          )
+        );
       }
       if (result.environmentPrompts) {
         result.environmentPrompts = result.environmentPrompts.map((e, index) => ({
@@ -370,6 +496,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           promptVi: e.promptVi || "",
         }));
       }
+
+      // Synthesize group character reference prompt deterministically
+      const groupRes = buildGroupCharacterPrompt({
+        characters,
+        individualCharacterPrompts: result.individualCharacterPrompts || [],
+        style,
+        includeNameTags,
+      });
+
+      result.characterReferencePrompt = groupRes.prompt;
+      result.characterReferencePromptVi = groupRes.promptVi;
+
       return result;
     }
 
@@ -472,11 +610,13 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       Video: (props) => <Icon {...props} path={<><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></>} />,
       Layers: (props) => <Icon {...props} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></>} />,
       XCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></>} />,
-      MoreHorizontal: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></>} />
+      MoreHorizontal: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></>} />,
+      Tag: (props) => <Icon {...props} path={<><path d="M12 2H2v10l10 10 10-10L12 2z"/><circle cx="7" cy="7" r="1.5"/></>} />,
+      RefreshCw: (props) => <Icon {...props} path={<><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></>} />
     };
 
     // --- COMPONENT: HEADER ---
-    const Header = ({ currentStep, onStepClick, maxStepReached, customApiKey, onApiKeyChange, onResetProject, hasSavedProject }) => {
+    const Header = ({ currentStep, onStepClick, maxStepReached, customApiKey, onApiKeyChange, onResetProject, hasSavedProject, globalLang = 'vi', onGlobalLangChange }) => {
       const [isKeyPopoverOpen, setIsKeyPopoverOpen] = useState(false);
       const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -488,7 +628,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
       return (
         <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-slate-100 shadow-md">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
             {/* Top Header Row */}
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               {/* Brand Logo & Title */}
@@ -534,6 +674,36 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                     <Icons.Trash2 className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                     <span className="text-[11px] sm:text-xs">Xóa dự án</span>
                   </button>
+                )}
+
+                {/* Global Language Toggle Switch */}
+                {onGlobalLangChange && (
+                  <div className="inline-flex items-center bg-slate-800/90 border border-slate-700/90 rounded-xl p-0.5 text-xs font-bold shrink-0 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => onGlobalLangChange('vi')}
+                      title="Chuyển sang Tiếng Việt toàn hệ thống"
+                      className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] sm:text-xs ${
+                        globalLang === 'vi'
+                          ? 'bg-indigo-600 text-white shadow font-black'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      VI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onGlobalLangChange('en')}
+                      title="Chuyển sang Tiếng Anh (English) toàn hệ thống"
+                      className={`px-2 sm:px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] sm:text-xs ${
+                        globalLang === 'en'
+                          ? 'bg-indigo-600 text-white shadow font-black'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      EN
+                    </button>
+                  </div>
                 )}
 
                 {/* API Key Config Button */}
@@ -731,9 +901,19 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
     };
 
     // --- COMPONENT: PROMPT CARD ---
-    const PromptCard = ({ title, subtitle, promptText, displayText, badge, badgeColor = 'purple', className = '', copyLabel = 'Sao chép prompt' }) => {
-      const [lang, setLang] = useState('vi');
+    const PromptCard = ({ title, subtitle, promptText, displayText, badge, badgeColor = 'purple', className = '', copyLabel = 'Sao chép prompt', lang, onLangChange }) => {
+      const [internalLang, setInternalLang] = useState('vi');
       const [copied, setCopied] = useState(false);
+
+      const activeLang = lang !== undefined ? lang : internalLang;
+
+      const handleLangChange = (selectedLang) => {
+        if (onLangChange) {
+          onLangChange(selectedLang);
+        } else {
+          setInternalLang(selectedLang);
+        }
+      };
 
       const handleCopy = async () => {
         const textToCopy = currentText || promptText;
@@ -769,62 +949,65 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         indigo: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
       };
 
-      const currentText = lang === 'vi' ? (displayText || promptText) : promptText;
+      const currentText = activeLang === 'vi' ? (displayText || promptText) : promptText;
 
       return (
         <div className={`bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg transition-all hover:border-slate-600 flex flex-col justify-between ${className}`}>
-          <div className={`flex flex-wrap items-center justify-between gap-2.5 ${subtitle || badge ? 'mb-3 pb-3' : 'mb-2.5 pb-2.5'} border-b border-slate-700/80 shrink-0`}>
-            <div className="flex-1 min-w-[180px]">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-bold text-slate-100 text-sm sm:text-base">{title}</h4>
+          <div className={`flex flex-col gap-1.5 ${subtitle || badge ? 'mb-3 pb-3' : 'mb-2.5 pb-2.5'} border-b border-slate-700/80 shrink-0`}>
+            {/* Row 1: Title + Badge on left, Lang Toggle + Copy Button on right */}
+            <div className="flex items-center justify-between gap-2.5 w-full">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <h4 className="font-bold text-slate-100 text-sm sm:text-base truncate">{title}</h4>
                 {badge && (
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeColors[badgeColor] || badgeColors.purple}`}>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border shrink-0 ${badgeColors[badgeColor] || badgeColors.purple}`}>
                     {badge}
                   </span>
                 )}
               </div>
-              {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
-            </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="inline-flex items-center bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 text-[11px] font-bold">
+              <div className="flex items-center gap-2 shrink-0 ml-auto">
+                <div className="inline-flex items-center bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => handleLangChange('vi')}
+                    className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                      activeLang === 'vi'
+                        ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    VI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLangChange('en')}
+                    className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
+                      activeLang === 'en'
+                        ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    EN
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setLang('vi')}
-                  className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
-                    lang === 'vi'
-                      ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
-                      : 'text-slate-400 hover:text-slate-200'
+                  onClick={handleCopy}
+                  title={activeLang === 'vi' ? 'Sao chép prompt' : 'Copy prompt'}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 cursor-pointer p-0 ${
+                    copied
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 border border-emerald-500/50'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30'
                   }`}
                 >
-                  VI
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLang('en')}
-                  className={`px-2.5 py-1 rounded transition-all cursor-pointer ${
-                    lang === 'en'
-                      ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  EN
+                  {copied ? <Icons.Check className="w-4 h-4" /> : <Icons.Copy className="w-4 h-4" />}
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handleCopy}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ${
-                  copied
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30'
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30'
-                }`}
-              >
-                {copied ? <Icons.Check className="w-3.5 h-3.5" /> : <Icons.Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Đã sao chép!' : copyLabel}</span>
-              </button>
             </div>
+
+            {/* Row 2: Subtitle */}
+            {subtitle && <p className="text-xs text-slate-400 font-normal leading-snug">{subtitle}</p>}
           </div>
 
           <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-xs sm:text-sm text-slate-200 leading-relaxed whitespace-pre-wrap select-all max-h-52 sm:max-h-60 overflow-y-auto flex-1 mt-1">
@@ -888,7 +1071,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       return (
-        <div className="max-w-4xl mx-auto py-6 px-4">
+        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-3">
               <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -1113,7 +1296,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       return (
-        <div className="max-w-5xl mx-auto py-6 px-4 pb-28">
+        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 pb-28">
           <div className="mb-6 bg-slate-800 border border-indigo-500/30 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 bg-gradient-to-r from-slate-800 to-indigo-950/40">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
@@ -1321,22 +1504,21 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           </div>
 
           {/* Bottom Nav Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-700/80 p-3 sm:py-3.5 sm:px-6 z-30 shadow-[0_-8px_25px_rgba(0,0,0,0.5)]">
-            <div className="max-w-5xl mx-auto grid grid-cols-2 gap-2.5 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div className="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 py-3 px-4 sm:px-6 z-30 shadow-[0_-8px_25px_rgba(0,0,0,0.5)]">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
               <button
                 onClick={() => { refineInputRef.current?.focus(); refineInputRef.current?.scrollIntoView({ behavior: 'smooth' }); }}
-                className="w-full min-h-[44px] sm:w-auto px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-bold text-xs sm:text-sm border border-amber-500/30 shadow-md flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer"
+                className="w-full sm:w-[210px] h-11 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white font-medium text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
               >
-                <Icons.Pencil className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="truncate">[✏️ Tôi muốn sửa]</span>
+                <Icons.Pencil className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="truncate">Chỉnh sửa kịch bản</span>
               </button>
               <button
                 onClick={onNextStep}
                 disabled={isLoading}
-                className="w-full min-h-[44px] sm:w-auto px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-indigo-600 to-purple-600 hover:from-emerald-500 hover:to-indigo-500 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-indigo-600/25 border border-indigo-400/30 flex items-center justify-center gap-1.5 sm:gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                className="w-full sm:w-[210px] h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-semibold text-xs sm:text-sm border border-indigo-500/50 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
               >
-                <Icons.CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
-                <span className="truncate">[✅ Đồng ý, sang bước 2]</span>
+                <span className="truncate">Chuyển bước tiếp</span>
                 <Icons.ArrowRight className="w-4 h-4 shrink-0" />
               </button>
             </div>
@@ -1349,6 +1531,24 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
     const Step2ReferencePrompts = ({ projectData, onUpdateProjectData, onGenerateReferencePrompts, onNextStep, onGoToStep1, isScriptModifiedAfterGenerate, isLoading }) => {
       const [showStyleModal, setShowStyleModal] = useState(false);
       const [showRatioModal, setShowRatioModal] = useState(false);
+      const [includeNameTags, setIncludeNameTags] = useState(projectData.includeNameTags ?? true);
+      const [isGroupPromptOutdated, setIsGroupPromptOutdated] = useState(false);
+
+      const [editingCharKey, setEditingCharKey] = useState(null);
+      const [editPromptEn, setEditPromptEn] = useState('');
+      const [editPromptVi, setEditPromptVi] = useState('');
+
+      const isIndividualComplete =
+        projectData.individualCharacterPrompts &&
+        projectData.individualCharacterPrompts.length > 0 &&
+        projectData.individualCharacterPrompts.length === (projectData.characters || []).length &&
+        projectData.individualCharacterPrompts.every((item) => item.prompt && item.prompt.trim().length > 0);
+
+      useEffect(() => {
+        if (projectData.includeNameTags !== undefined && projectData.includeNameTags !== includeNameTags) {
+          setIncludeNameTags(projectData.includeNameTags);
+        }
+      }, [projectData.includeNameTags]);
 
       const handleSelectStyle = async (newStyle) => {
         setShowStyleModal(false);
@@ -1362,8 +1562,86 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         await onGenerateReferencePrompts(projectData.style, newRatio);
       };
 
+      const handleSetGlobalLang = (newLang) => {
+        onUpdateProjectData({
+          ...projectData,
+          globalLang: newLang,
+        });
+      };
+
+      const reformatGroupPrompt = (currentIndPrompts, nameTagsState) => {
+        return buildGroupCharacterPrompt({
+          characters: projectData.characters,
+          individualCharacterPrompts: currentIndPrompts,
+          style: projectData.style,
+          includeNameTags: nameTagsState,
+        });
+      };
+
+      const handleToggleNameTags = () => {
+        const nextVal = !includeNameTags;
+        setIncludeNameTags(nextVal);
+
+        const updatedIndividual = (projectData.individualCharacterPrompts || []).map((ind, idx) =>
+          formatIndividualPrompt(ind, nextVal, idx)
+        );
+
+        const rebuilt = reformatGroupPrompt(updatedIndividual, nextVal);
+
+        onUpdateProjectData({
+          ...projectData,
+          includeNameTags: nextVal,
+          individualCharacterPrompts: updatedIndividual,
+          characterReferencePrompt: rebuilt.prompt,
+          characterReferencePromptVi: rebuilt.promptVi,
+        });
+        setIsGroupPromptOutdated(false);
+      };
+
+      const handleRebuildGroupPrompt = () => {
+        if (!isIndividualComplete) return;
+
+        const rebuilt = reformatGroupPrompt(projectData.individualCharacterPrompts || [], includeNameTags);
+
+        onUpdateProjectData({
+          ...projectData,
+          includeNameTags,
+          characterReferencePrompt: rebuilt.prompt,
+          characterReferencePromptVi: rebuilt.promptVi,
+        });
+        setIsGroupPromptOutdated(false);
+      };
+
+      const handleStartEditIndividual = (item, key) => {
+        setEditingCharKey(key);
+        setEditPromptEn(item.prompt || '');
+        setEditPromptVi(item.promptVi || '');
+      };
+
+      const handleSaveIndividualEdit = (key) => {
+        const updatedList = (projectData.individualCharacterPrompts || []).map((item, idx) => {
+          const itemKey = item.characterId || item.characterName || `char_${idx}`;
+          if (itemKey === key) {
+            return {
+              ...item,
+              prompt: editPromptEn,
+              promptVi: editPromptVi,
+            };
+          }
+          return item;
+        });
+
+        onUpdateProjectData({
+          ...projectData,
+          individualCharacterPrompts: updatedList,
+        });
+
+        setIsGroupPromptOutdated(true);
+        setEditingCharKey(null);
+      };
+
       return (
-        <div className="max-w-5xl mx-auto py-6 px-4 pb-28 space-y-6">
+        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 pb-28 space-y-6">
           {isScriptModifiedAfterGenerate && (
             <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2">
@@ -1395,7 +1673,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                 <Icons.Maximize className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-widest">Tỉ lệ khung hình:</span>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-widest">Tỉ lệ khung hình (Khối A/B/Env):</span>
                 <span className="text-sm font-bold text-slate-100">{projectData.aspectRatio}</span>
               </div>
               <button onClick={() => setShowRatioModal(true)} className="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
@@ -1404,53 +1682,160 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             </div>
           </div>
 
-          {/* All Characters Reference Prompt */}
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-3">
-            <div className="flex items-center gap-2">
-              <Icons.Users className="w-5 h-5 text-indigo-400" />
-              <div>
-                <h3 className="font-bold text-slate-100 text-base">Prompt ảnh mẫu nhân vật (Character Reference Prompt)</h3>
-                <p className="text-xs text-slate-400">Gộp tất cả nhân vật trong một ảnh tham chiếu góc đứng trung lập A-pose, nền trắng trơn.</p>
-              </div>
-            </div>
-            <PromptCard
-              title="Tất cả nhân vật (Ảnh gộp tham chiếu)"
-              subtitle="Tư thế trung lập A-pose • Nền trắng trơn • Không sản phẩm • Không chữ"
-              promptText={projectData.characterReferencePrompt || "Đang khởi tạo prompt..."}
-              displayText={projectData.characterReferencePromptVi}
-              badge="Character Ref"
-              badgeColor="purple"
-            />
-          </div>
-
-          {/* Individual Character Prompts */}
+          {/* SECTION 1: INDIVIDUAL CHARACTER PROMPTS (FIRST) */}
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
-            <div className="flex items-center gap-2">
-              <Icons.User className="w-5 h-5 text-indigo-400" />
-              <div>
-                <h3 className="font-bold text-slate-100 text-base">Prompt ảnh mẫu riêng cho từng nhân vật</h3>
-                <p className="text-xs text-slate-400">Liệt kê prompt tham chiếu tạo hình riêng cho từng nhân vật.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
+              <div className="flex items-center gap-2">
+                <Icons.User className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-bold text-slate-100 text-base">Prompt ảnh mẫu riêng cho từng nhân vật (Individual Character Prompts)</h3>
+                  <p className="text-xs text-slate-400">Prompt tham chiếu tạo hình riêng cho từng nhân vật.</p>
+                </div>
+              </div>
+
+              {/* Name Tag Toggle */}
+              <div className="flex items-center gap-3 bg-slate-900/80 px-3.5 py-1.5 rounded-xl border border-slate-700/80 self-start sm:self-auto">
+                <Icons.Tag className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span className="text-xs font-semibold text-slate-200">Gắn nhãn tên dưới chân:</span>
+                <button
+                  type="button"
+                  onClick={handleToggleNameTags}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    includeNameTags ? 'bg-indigo-600' : 'bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      includeNameTags ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className="text-[11px] font-bold text-indigo-300 w-8">{includeNameTags ? 'BẬT' : 'TẮT'}</span>
               </div>
             </div>
+
             {projectData.individualCharacterPrompts && projectData.individualCharacterPrompts.length > 0 ? (
-              <div className="space-y-4">
-                {projectData.individualCharacterPrompts.map((indivItem, idx) => (
-                  <PromptCard
-                    key={idx}
-                    title={`Nhân vật: ${indivItem.characterName}`}
-                    subtitle="Tham chiếu cá nhân • Tư thế đứng trung lập • Nền trắng trơn"
-                    promptText={indivItem.prompt}
-                    displayText={indivItem.promptVi}
-                    badge={`Ref: ${indivItem.characterName}`}
-                    badgeColor="indigo"
-                  />
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {projectData.individualCharacterPrompts.map((indivItem, idx) => {
+                  const charKey = indivItem.characterId || indivItem.characterName || `char_${idx}`;
+                  const isEditing = editingCharKey === charKey;
+
+                  return (
+                    <div key={charKey} className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between h-full">
+                      {isEditing ? (
+                        <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-indigo-500/50">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-indigo-300">Chỉnh sửa prompt: {indivItem.characterName}</span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setEditingCharKey(null)}
+                                className="px-2.5 py-1 bg-slate-800 text-slate-300 hover:bg-slate-700 rounded-lg text-xs"
+                              >
+                                Hủy
+                              </button>
+                              <button
+                                onClick={() => handleSaveIndividualEdit(charKey)}
+                                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs flex items-center gap-1"
+                              >
+                                <Icons.Check className="w-3.5 h-3.5" />
+                                <span>Lưu thay đổi</span>
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Prompt tiếng Anh (EN):</label>
+                            <textarea
+                              value={editPromptEn}
+                              onChange={(e) => setEditPromptEn(e.target.value)}
+                              rows={3}
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Bản dịch tiếng Việt (VI):</label>
+                            <textarea
+                              value={editPromptVi}
+                              onChange={(e) => setEditPromptVi(e.target.value)}
+                              rows={2}
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <PromptCard
+                          title={`Nhân vật: ${indivItem.characterName}`}
+                          promptText={indivItem.prompt}
+                          displayText={indivItem.promptVi}
+                          lang={projectData.globalLang || 'vi'}
+                          onLangChange={handleSetGlobalLang}
+                          className="h-full"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="p-4 text-center text-slate-400 text-xs bg-slate-900/50 rounded-xl border border-slate-700">
-                Prompt ảnh riêng cho từng nhân vật sẽ xuất hiện tại đây.
+                Prompt ảnh riêng cho từng nhân vật sẽ tự động xuất hiện tại đây sau khi sinh prompt tham chiếu.
               </div>
             )}
+          </div>
+
+          {/* SECTION 2: ALL CHARACTERS GROUP REFERENCE PROMPT (SECOND) */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-700/80 pb-3">
+              <Icons.Users className="w-5 h-5 text-purple-400" />
+              <div>
+                <h3 className="font-bold text-slate-100 text-base">Tất cả nhân vật (Ảnh gộp tham chiếu - Group Reference)</h3>
+                <p className="text-xs text-slate-400">Tổng hợp từ prompt riêng của tất cả nhân vật. Khung ngang dàn hàng ngang nguyên mẫu.</p>
+              </div>
+            </div>
+
+            {/* Outdated Warning Banner */}
+            {isGroupPromptOutdated && (
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-md">
+                <div className="flex items-center gap-2">
+                  <Icons.AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Dữ liệu nhân vật đã thay đổi, nên tạo lại ảnh gộp.</span>
+                </div>
+                <button
+                  onClick={handleRebuildGroupPrompt}
+                  disabled={!isIndividualComplete}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs shrink-0 transition-all shadow-sm disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Icons.RefreshCw className="w-3.5 h-3.5" />
+                  <span>Tạo lại ảnh gộp</span>
+                </button>
+              </div>
+            )}
+
+            <PromptCard
+              title="Tất cả nhân vật (Ảnh gộp tham chiếu)"
+              promptText={projectData.characterReferencePrompt || "Đang khởi tạo prompt nhân vật..."}
+              displayText={projectData.characterReferencePromptVi}
+              lang={projectData.globalLang || 'vi'}
+              onLangChange={handleSetGlobalLang}
+            />
+
+            {/* Muted Note & Rebuild Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-slate-400 text-xs italic bg-slate-900/40 p-3 rounded-xl border border-slate-700/50">
+              <span>* Ảnh nhóm nhiều người luôn dùng 16:9, không theo tỉ lệ đã chọn ở trên.</span>
+
+              {!isIndividualComplete ? (
+                <span className="text-amber-400/90 font-medium not-italic text-[11px] bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                  ⚠️ Cần đủ prompt riêng từng nhân vật trước khi gộp
+                </span>
+              ) : (
+                <button
+                  onClick={handleRebuildGroupPrompt}
+                  className="px-3 py-1.5 bg-indigo-600/80 hover:bg-indigo-600 text-white font-semibold rounded-lg text-xs not-italic transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                >
+                  <Icons.RefreshCw className="w-3.5 h-3.5" />
+                  <span>Cập nhật / Tạo lại ảnh gộp</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Environment Prompts */}
@@ -1463,17 +1848,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
               </div>
             </div>
             {projectData.environmentPrompts && projectData.environmentPrompts.length > 0 ? (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {projectData.environmentPrompts.map((envItem, idx) => (
-                  <PromptCard
-                    key={idx}
-                    title={`Địa điểm: ${envItem.location}`}
-                    subtitle={`Bối cảnh góc rộng • Không người • Tỉ lệ ${projectData.aspectRatio}`}
-                    promptText={envItem.prompt}
-                    displayText={envItem.promptVi}
-                    badge="Environment Ref"
-                    badgeColor="emerald"
-                  />
+                  <div key={idx} className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between h-full">
+                    <PromptCard
+                      title={`Địa điểm: ${envItem.location}`}
+                      promptText={envItem.prompt}
+                      displayText={envItem.promptVi}
+                      lang={projectData.globalLang || 'vi'}
+                      onLangChange={handleSetGlobalLang}
+                      className="h-full"
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
@@ -1543,22 +1929,21 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           )}
 
           {/* Bottom Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-700/80 p-3 sm:py-3.5 sm:px-6 z-30 shadow-[0_-8px_25px_rgba(0,0,0,0.5)]">
-            <div className="max-w-5xl mx-auto grid grid-cols-2 gap-2.5 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div className="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 py-3 px-4 sm:px-6 z-30 shadow-[0_-8px_25px_rgba(0,0,0,0.5)]">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
               <button
                 onClick={onGoToStep1}
-                className="w-full min-h-[44px] sm:w-auto px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-bold text-xs sm:text-sm border border-amber-500/30 shadow-md flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer"
+                className="w-full sm:w-[210px] h-11 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white font-medium text-xs sm:text-sm border border-slate-700 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
               >
-                <Icons.Pencil className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="truncate">[✏️ Tôi muốn sửa]</span>
+                <Icons.Pencil className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="truncate">Chỉnh sửa kịch bản</span>
               </button>
               <button
                 onClick={onNextStep}
                 disabled={isLoading}
-                className="w-full min-h-[44px] sm:w-auto px-3.5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-600 via-indigo-600 to-purple-600 hover:from-emerald-500 hover:to-indigo-500 active:scale-95 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-indigo-600/25 border border-indigo-400/30 flex items-center justify-center gap-1.5 sm:gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                className="w-full sm:w-[210px] h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-semibold text-xs sm:text-sm border border-indigo-500/50 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
               >
-                <Icons.CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
-                <span className="truncate">[✅ Đồng ý, sang bước 3]</span>
+                <span className="truncate">Chuyển bước tiếp</span>
                 <Icons.ArrowRight className="w-4 h-4 shrink-0" />
               </button>
             </div>
@@ -1613,48 +1998,56 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const handleCopyLocationPrompt = async (locationName, itemKey) => {
-        if (!locationName || locationName === 'N/A') {
-          showToast('error', `Không tìm thấy prompt môi trường cho: ${locationName || 'N/A'}`);
-          return;
-        }
+        if (!locationName || locationName === 'N/A') return;
         const cleanLoc = locationName.trim().toLowerCase();
         const envPrompts = projectData.environmentPrompts || [];
         const matched = envPrompts.find((e) => e.location && e.location.trim().toLowerCase() === cleanLoc) ||
                         envPrompts.find((e) => e.location && (e.location.trim().toLowerCase().includes(cleanLoc) || cleanLoc.includes(e.location.trim().toLowerCase())));
 
-        if (matched && matched.prompt) {
-          const ok = await copyTextToClipboard(matched.prompt);
-          if (ok) {
-            triggerCopyFeedback(itemKey);
-            showToast('success', `Đã sao chép prompt môi trường: ${matched.location || locationName}`);
-          } else {
-            showToast('error', `Lỗi khi sao chép: ${locationName}`);
+        if (matched) {
+          const globalLang = projectData.globalLang || 'vi';
+          const textToCopy = globalLang === 'vi' ? (matched.promptVi || matched.prompt) : matched.prompt;
+
+          if (textToCopy) {
+            const ok = await copyTextToClipboard(textToCopy);
+            if (ok) {
+              triggerCopyFeedback(itemKey);
+            }
           }
-        } else {
-          showToast('error', `Không tìm thấy prompt môi trường cho: ${locationName}`);
         }
       };
 
       const handleCopyCharacterPrompt = async (charName, itemKey) => {
-        if (!charName) {
-          showToast('error', 'Không tìm thấy prompt nhân vật.');
-          return;
-        }
+        if (!charName) return;
         const cleanName = charName.trim().toLowerCase();
         const indivPrompts = projectData.individualCharacterPrompts || [];
         const matched = indivPrompts.find((c) => c.characterName && c.characterName.trim().toLowerCase() === cleanName) ||
                         indivPrompts.find((c) => c.characterName && (c.characterName.trim().toLowerCase().includes(cleanName) || cleanName.includes(c.characterName.trim().toLowerCase())));
 
-        if (matched && matched.prompt) {
-          const ok = await copyTextToClipboard(matched.prompt);
-          if (ok) {
-            triggerCopyFeedback(itemKey);
-            showToast('success', `Đã sao chép prompt nhân vật: ${matched.characterName || charName}`);
-          } else {
-            showToast('error', `Lỗi khi sao chép: ${charName}`);
+        if (matched) {
+          const globalLang = projectData.globalLang || 'vi';
+          const textToCopy = globalLang === 'vi' ? (matched.promptVi || matched.prompt) : matched.prompt;
+
+          if (textToCopy) {
+            const ok = await copyTextToClipboard(textToCopy);
+            if (ok) {
+              triggerCopyFeedback(itemKey);
+            }
           }
-        } else {
-          showToast('error', `Không tìm thấy prompt nhân vật cho: ${charName}`);
+        }
+      };
+
+      const handleCopyGroupRefPrompt = async (itemKey) => {
+        const globalLang = projectData.globalLang || 'vi';
+        const textToCopy = globalLang === 'vi'
+          ? (projectData.characterReferencePromptVi || projectData.characterReferencePrompt)
+          : projectData.characterReferencePrompt;
+
+        if (!textToCopy) return;
+
+        const ok = await copyTextToClipboard(textToCopy);
+        if (ok) {
+          triggerCopyFeedback(itemKey);
         }
       };
 
@@ -1678,9 +2071,6 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           if (ok) {
             setCopiedAll(true);
             setTimeout(() => setCopiedAll(false), 2000);
-            showToast('success', 'Đã sao chép toàn bộ prompt video!');
-          } else {
-            showToast('error', 'Không thể sao chép văn bản.');
           }
         } catch (err) {
           console.error('Failed to copy all video prompts: ', err);
@@ -1688,16 +2078,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       return (
-        <div className="max-w-[1200px] mx-auto py-6 px-4 sm:px-6 pb-28 space-y-6 sm:space-y-7 relative">
-          {toast && (
-            <div className={`fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-xs sm:text-sm font-semibold ${
-              toast.type === 'success' ? 'bg-slate-900 border-emerald-500/60 text-emerald-300' : 'bg-slate-900 border-rose-500/60 text-rose-300'
-            }`}>
-              {toast.type === 'success' ? <Icons.CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Icons.XCircle className="w-4 h-4 text-rose-400" />}
-              <span>{toast.message}</span>
-            </div>
-          )}
-
+        <div className="max-w-5xl mx-auto py-6 px-4 sm:px-6 pb-28 space-y-6 sm:space-y-7 relative">
           {isScriptModifiedAfterGenerate && (
             <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2">
@@ -1723,15 +2104,17 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
               </div>
             </div>
 
-            <div className="mt-3.5 p-3.5 bg-slate-900/60 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1.5">
-              <div className="font-semibold text-amber-400 flex items-center gap-1.5">
-                <Icons.Sparkles className="w-3.5 h-3.5" />
-                <span>Quy trình sử dụng chuẩn:</span>
+            <div className="mt-3.5">
+              <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1.5">
+                <div className="font-semibold text-amber-400 flex items-center gap-1.5">
+                  <Icons.Sparkles className="w-3.5 h-3.5" />
+                  <span>Quy trình sử dụng chuẩn:</span>
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
+                  <li><strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram...) để tạo ảnh khung hình đầu tiên.</li>
+                  <li><strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma, Pika...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô mô tả chuyển động.</li>
+                </ol>
               </div>
-              <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
-                <li><strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram...) để tạo ảnh khung hình đầu tiên.</li>
-                <li><strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma, Pika...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô mô tả chuyển động.</li>
-              </ol>
             </div>
           </div>
 
@@ -1747,7 +2130,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       <h3 className="font-bold text-slate-100 text-base sm:text-lg tracking-tight">{sp.sceneTitle}</h3>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-slate-300 sm:pl-11">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-slate-300 sm:pl-11">
                       <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700/80">
                         <span>📍</span>
                         <span className="font-medium text-slate-400">Địa điểm:</span>
@@ -1756,7 +2139,11 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                           <button
                             onClick={() => handleCopyLocationPrompt(sp.location, `loc_${idx}`)}
                             title={`Sao chép prompt môi trường: ${sp.location}`}
-                            className="ml-1 p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-400 cursor-pointer"
+                            className={`ml-1 w-6 h-6 p-0 rounded-md transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                              copiedItemKey === `loc_${idx}`
+                                ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/50'
+                                : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-700/80'
+                            }`}
                           >
                             {copiedItemKey === `loc_${idx}` ? <Icons.Check className="w-3.5 h-3.5 text-emerald-400" /> : <Icons.Copy className="w-3.5 h-3.5" />}
                           </button>
@@ -1769,14 +2156,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                           <span className="font-medium text-slate-400">Nhân vật:</span>
                           <div className="flex flex-wrap items-center gap-1.5">
                             {sp.charactersPresent.map((charName, charIdx) => {
-                              const charKey = `char_${idx}_${charIdx}`;
+                              const charKey = `char_${idx}__${charIdx}`;
                               return (
                                 <span key={charIdx} className="inline-flex items-center gap-1">
                                   <span className="font-semibold text-purple-300">{charName}</span>
                                   <button
                                     onClick={() => handleCopyCharacterPrompt(charName, charKey)}
                                     title={`Sao chép prompt nhân vật: ${charName}`}
-                                    className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-purple-300 cursor-pointer"
+                                    className={`w-6 h-6 p-0 rounded-md transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                                      copiedItemKey === charKey
+                                        ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/50'
+                                        : 'text-slate-400 hover:text-purple-300 hover:bg-slate-700/80'
+                                    }`}
                                   >
                                     {copiedItemKey === charKey ? <Icons.Check className="w-3.5 h-3.5 text-emerald-400" /> : <Icons.Copy className="w-3.5 h-3.5" />}
                                   </button>
@@ -1785,6 +2176,30 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                               );
                             })}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Compact GRP-REF Copy Badge inside Scene Header */}
+                      {projectData.characterReferencePrompt && (
+                        <div className="flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-700/80">
+                          <Icons.Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                          <span className="font-medium text-slate-400">Ảnh nhóm:</span>
+                          <span className="font-bold text-indigo-300">Tất cả</span>
+                          <button
+                            onClick={() => handleCopyGroupRefPrompt(`group_${idx}`)}
+                            title="Sao chép prompt ảnh gộp tất cả nhân vật (16:9)"
+                            className={`w-6 h-6 p-0 rounded-md transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                              copiedItemKey === `group_${idx}`
+                                ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/50'
+                                : 'text-indigo-400 hover:text-indigo-200 hover:bg-slate-800'
+                            }`}
+                          >
+                            {copiedItemKey === `group_${idx}` ? (
+                              <Icons.Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Icons.Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1802,6 +2217,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                         displayText={sp.initialFramePromptVi}
                         copyLabel="Sao chép prompt ảnh"
                         className="flex-1"
+                        lang={projectData.globalLang || 'vi'}
+                        onLangChange={(newLang) => onUpdateProjectData({ ...projectData, globalLang: newLang })}
                       />
                     </div>
 
@@ -1816,6 +2233,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                         displayText={sp.videoPromptVi}
                         copyLabel="Sao chép prompt video"
                         className="flex-1"
+                        lang={projectData.globalLang || 'vi'}
+                        onLangChange={(newLang) => onUpdateProjectData({ ...projectData, globalLang: newLang })}
                       />
                     </div>
                   </div>
@@ -1844,16 +2263,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
               badge="Nối tiếp"
               badgeColor="amber"
               copyLabel="Sao chép toàn bộ"
+              lang={projectData.globalLang || 'vi'}
+              onLangChange={(newLang) => onUpdateProjectData({ ...projectData, globalLang: newLang })}
             />
           </div>
 
           <div className="pt-4 flex justify-center">
             <button
               onClick={onResetProject}
-              className="px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg flex items-center gap-2"
+              className="px-8 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white font-semibold text-sm border border-slate-700 shadow-md flex items-center gap-2 transition-all cursor-pointer"
             >
-              <Icons.RotateCcw className="w-4 h-4" />
-              <span>BẮT ĐẦU DỰ ÁN MỚI</span>
+              <Icons.RotateCcw className="w-4 h-4 text-slate-400" />
+              <span>Tạo dự án mới</span>
             </button>
           </div>
         </div>
@@ -2232,6 +2653,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             onApiKeyChange={handleApiKeyChange}
             onResetProject={handleResetProject}
             hasSavedProject={hasSavedProject}
+            globalLang={projectData.globalLang || 'vi'}
+            onGlobalLangChange={(lang) => setProjectData((prev) => ({ ...prev, globalLang: lang }))}
           />
 
           <ProgressBar
@@ -2242,7 +2665,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
           <main className="flex-1 transition-all duration-300">
             {errorMsg && (
-              <div className="max-w-5xl mx-auto mt-4 px-4">
+              <div className="max-w-5xl mx-auto mt-4 px-4 sm:px-6">
                 <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-xs font-semibold flex items-center justify-between gap-3 shadow-lg">
                   <span>{errorMsg}</span>
                   <button onClick={() => setErrorMsg(null)} className="px-2.5 py-1 bg-rose-500/20 text-rose-200 rounded-lg text-xs">
