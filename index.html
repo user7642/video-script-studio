@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -1080,6 +1081,12 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         setIsSampleOpen(false);
       };
 
+      const handleRandomIdea = () => {
+        const randomIndex = Math.floor(Math.random() * SAMPLE_IDEAS.length);
+        const selectedSample = SAMPLE_IDEAS[randomIndex];
+        handleApplySample(selectedSample);
+      };
+
       const handleImageUpload = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -1135,9 +1142,21 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           <form onSubmit={handleSubmit} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 sm:p-7 shadow-lg space-y-6">
             {/* 1. Textarea Idea Input */}
             <div>
-              <label htmlFor="video-idea-input" className="block text-sm font-semibold text-slate-200 mb-2">
-                1. Mô tả ý tưởng video của bạn <span className="text-rose-400">*</span>
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <label htmlFor="video-idea-input" className="block text-xs sm:text-sm font-semibold text-slate-200">
+                  1. Mô tả ý tưởng video của bạn <span className="text-rose-400">*</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleRandomIdea}
+                  className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-indigo-200 border border-indigo-500/30 text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 active:scale-95 shadow-sm"
+                  title="Chèn 1 ý tưởng ngẫu nhiên"
+                >
+                  <Icons.RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Tạo ý tưởng ngẫu nhiên 🔄</span>
+                </button>
+              </div>
               <textarea
                 id="video-idea-input"
                 rows={5}
@@ -1690,6 +1709,19 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                <Icons.Maximize className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-widest">TỈ LỆ KHUNG HÌNH:</span>
+                <span className="text-sm font-bold text-slate-100">{projectData.aspectRatio || "9:16"}</span>
+              </div>
+              <button onClick={() => setShowRatioModal(true)} className="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
+                Đổi tỉ lệ
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-slate-700 pt-3 md:pt-0 md:pl-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                 <Icons.Palette className="w-5 h-5" />
               </div>
               <div>
@@ -1698,19 +1730,6 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
               </div>
               <button onClick={() => setShowStyleModal(true)} className="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
                 Đổi phong cách
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-slate-700 pt-3 md:pt-0 md:pl-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                <Icons.Maximize className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-widest">Tỉ lệ khung hình (Khối A/B/Env):</span>
-                <span className="text-sm font-bold text-slate-100">{projectData.aspectRatio}</span>
-              </div>
-              <button onClick={() => setShowRatioModal(true)} className="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold border border-slate-600">
-                Đổi tỉ lệ
               </button>
             </div>
           </div>
@@ -2204,6 +2223,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       const [copiedItemKey, setCopiedItemKey] = useState(null);
       const [toast, setToast] = useState(null);
       const [advConfig, setAdvConfig] = useState(loadAdvancedPromptConfig);
+      const [isGuideOpen, setIsGuideOpen] = useState(false);
       const toastTimerRef = useRef(null);
 
       useEffect(() => {
@@ -2362,31 +2382,54 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             </div>
           )}
 
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 sm:p-5 shadow-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <Icons.Film className="w-5 h-5" />
+          {/* Guide Accordion Block (Collapsed by default) */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg transition-all">
+            <button
+              type="button"
+              onClick={() => setIsGuideOpen(!isGuideOpen)}
+              className="w-full p-3.5 sm:p-4 flex items-center justify-between cursor-pointer hover:bg-slate-750 transition-colors select-none text-left"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-base sm:text-lg">💡</span>
+                <h3 className="text-sm sm:text-base font-bold text-white truncate">
+                  Hướng dẫn sử dụng Prompt Cảnh
+                </h3>
               </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  Bước 3 — Prompt Ảnh Khởi Đầu & Prompt Video Từng Cảnh
-                </h2>
-                <p className="text-xs text-slate-400">Mỗi cảnh được chia làm 2 khối riêng biệt: Khối A (tạo ảnh mở đầu) và Khối B (tạo chuyển động video từ ảnh).</p>
+              <div className="flex items-center gap-2 shrink-0 ml-2 text-slate-400">
+                <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+                  {isGuideOpen ? 'Thu gọn' : 'Bấm để xem hướng dẫn'}
+                </span>
+                {isGuideOpen ? <Icons.ChevronUp className="w-5 h-5" /> : <Icons.ChevronDown className="w-5 h-5" />}
               </div>
-            </div>
+            </button>
 
-            <div className="mt-3.5">
-              <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-1.5">
-                <div className="font-semibold text-amber-400 flex items-center gap-1.5">
-                  <Icons.Sparkles className="w-3.5 h-3.5" />
-                  <span>Quy trình sử dụng chuẩn:</span>
+            {isGuideOpen && (
+              <div className="p-4 sm:p-5 border-t border-slate-700/80 bg-slate-850/60 space-y-3">
+                <div>
+                  <h4 className="font-bold text-slate-100 text-sm sm:text-base">
+                    Bước 3 — Prompt Ảnh Khởi Đầu & Prompt Video Từng Cảnh
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Mỗi cảnh được chia làm 2 khối riêng biệt: Khối A (tạo ảnh mở đầu) và Khối B (tạo chuyển động video từ ảnh).
+                  </p>
                 </div>
-                <ol className="list-decimal list-inside space-y-1 text-slate-300 pl-1">
-                  <li><strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram...) để tạo ảnh khung hình đầu tiên.</li>
-                  <li><strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma, Pika...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô mô tả chuyển động.</li>
-                </ol>
+
+                <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700 text-xs text-slate-300 space-y-2">
+                  <div className="font-semibold text-amber-400 flex items-center gap-1.5">
+                    <Icons.Sparkles className="w-3.5 h-3.5" />
+                    <span>Quy trình sử dụng chuẩn:</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 pl-1">
+                    <li>
+                      <strong className="text-white">Bước 3.1:</strong> Sao chép <span className="text-indigo-400 font-semibold">Khối A (Prompt ảnh khởi đầu)</span> dán vào công cụ tạo ảnh (Midjourney, Ideogram, Flux...) để tạo ra ảnh khung hình đầu tiên.
+                    </li>
+                    <li>
+                      <strong className="text-white">Bước 3.2:</strong> Tải bức ảnh vừa tạo lên công cụ video AI (Kling, Runway, Luma, Pika...), sau đó sao chép <span className="text-amber-400 font-semibold">Khối B (Prompt video)</span> dán vào ô mô tả chuyển động.
+                    </li>
+                  </ol>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <AdvancedPromptConfig config={advConfig} onChange={setAdvConfig} />
@@ -3005,19 +3048,20 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             )}
           </main>
 
-          <footer className="px-6 py-3 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest mt-auto">
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span>Gemini API Sẵn sàng</span>
+          <footer className="px-3 sm:px-6 py-2 sm:py-3 bg-slate-900 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-2 text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider mt-auto w-full pb-20 sm:pb-3">
+            <div className="flex flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="font-semibold text-slate-300">Gemini API Sẵn sàng</span>
               </div>
-              <div className="flex items-center gap-2">
+              <span className="text-slate-700 hidden sm:inline">•</span>
+              <div className="flex items-center gap-1.5 shrink-0">
                 <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                <span>Client-side Standalone App</span>
+                <span className="font-semibold text-slate-300">Client-side Standalone</span>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest">
-              © 2024 Video Script Studio - Standalone Single File App
+            <p className="text-[9px] sm:text-[10px] text-slate-500 uppercase tracking-widest text-center sm:text-right">
+              © 2024 Video Script Studio
             </p>
           </footer>
         </div>
