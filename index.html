@@ -1,10 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
   <title>AI Studio - Tạo Video Script & Prompt</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234F46E5'/><path d='M30 30h40v40H30z' fill='none' stroke='%23ffffff' stroke-width='6'/><path d='M45 40l20 10-20 10V40z' fill='%23ffffff'/><path d='M75 25l3-6 6-3-6-3-3-6-3 6-6 3 6 3z' fill='%23F59E0B'/></svg>" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React & React DOM (Primary: cdnjs, Fallback: jsdelivr, unpkg) -->
@@ -210,13 +211,14 @@
     }
 
     // Generate Random Idea
-    async function generateRandomIdeaClient() {
+    async function generateRandomIdeaClient(genre) {
       const customApiKey = getStoredApiKey();
+      const currentGenre = genre || "Lãng mạn, ngôn tình, ngọt ngào";
       try {
         const res = await fetch('/api/generate-random-idea', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customApiKey }),
+          body: JSON.stringify({ genre: currentGenre, customApiKey }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -226,7 +228,7 @@
         console.warn('Server endpoint /api/generate-random-idea failed, falling back to client call:', err);
       }
 
-      const promptText = `Hãy đóng vai nhà sáng tạo nội dung, tự tạo 1 ý tưởng kịch bản video ngắn độc đáo, giật gân hoặc giàu cảm xúc dưới 50 từ. Ý tưởng không trùng lặp với các mẫu gợi ý thông thường.
+      const promptText = `Hãy đóng vai nhà sáng tạo nội dung, tự tạo 1 ý tưởng kịch bản video ngắn độc đáo thuộc thể loại ${currentGenre} dưới 50 từ. Ý tưởng mới mẻ, tự nhiên, không nhồi từ khóa.
 
 ### CẤU TRÚC JSON ĐẦU RA
 {
@@ -533,7 +535,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
           return `${idx + 1}. ${rawName}: ${appearanceEn}`;
         })
-        .join('\n');
+        .join('\n\n');
 
       const namesListCleanEn = individualCharacterPrompts
         .map((ind) => `"${removeVietnameseTones(ind.characterName || '')}"`)
@@ -553,7 +555,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
           return `${idx + 1}. ${rawName}: ${appearanceVi}`;
         })
-        .join('\n');
+        .join('\n\n');
 
       const namesListCleanVi = individualCharacterPrompts
         .map((ind) => `"${removeVietnameseTones(ind.characterName || '')}"`)
@@ -1142,6 +1144,17 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       );
     };
 
+    const GENRES = [
+      "Lãng mạn, ngôn tình, ngọt ngào",
+      "Khoa học viễn tưởng, tương lai, công nghệ",
+      "Xuyên không, kỳ ảo, huyền huyễn",
+      "Ý nghĩa, ấm áp, chữa lành, tình cảm gia đình",
+      "Giật gân, bí ẩn, bất ngờ (Plot twist)",
+      "Hài hước, vui nhộn, hottrend",
+      "Đời sống sinh hoạt, thường ngày",
+      "Chuyện công sở, đồng nghiệp, drama văn phòng"
+    ];
+
     // --- COMPONENT: STEP 0 INPUT IDEA ---
     const Step0InputIdea = ({ onGenerateScript, isLoading }) => {
       const [idea, setIdea] = useState('');
@@ -1149,6 +1162,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       const [productImage, setProductImage] = useState(null);
       const [errorMsg, setErrorMsg] = useState('');
       const [isSampleOpen, setIsSampleOpen] = useState(false);
+      const [currentGenreIndex, setCurrentGenreIndex] = useState(0);
       const [isRandomizing, setIsRandomizing] = useState(false);
 
       const handleApplySample = (sample) => {
@@ -1164,12 +1178,14 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         setIsRandomizing(true);
         setErrorMsg('');
         try {
-          const generatedIdea = await generateRandomIdeaClient();
+          const selectedGenre = GENRES[currentGenreIndex];
+          const generatedIdea = await generateRandomIdeaClient(selectedGenre);
           if (generatedIdea && generatedIdea.trim()) {
             setIdea(generatedIdea.trim());
           } else {
             setErrorMsg('Không thể sinh ý tưởng ngẫu nhiên, vui lòng thử lại.');
           }
+          setCurrentGenreIndex((prev) => (prev + 1) % GENRES.length);
         } catch (err) {
           console.error('Lỗi khi sinh ý tưởng ngẫu nhiên:', err);
           setErrorMsg(err.message || 'Không thể kết nối đến AI. Vui lòng thử lại.');
@@ -2131,15 +2147,23 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
     };
 
     // --- ADVANCED PROMPT CONFIG UTILS & COMPONENT ---
-    const ADVANCED_CONFIG_STORAGE_KEY = 'video_script_studio_adv_prompt_config';
+    const ADVANCED_CONFIG_STORAGE_KEY = 'video_script_studio_adv_prompt_config_v3';
+
+    const PLACEHOLDER_CONFIG_A = `💡 Hướng dẫn cấu hình Prompt Ảnh:
+^ Chèn vào ĐẦU câu (Ví dụ: ^ Dùng ảnh tham chiếu [REF-01],)
+$ Chèn vào CUỐI câu (Ví dụ: $ tỉ lệ khung hình 9:16, chất lượng cao)
+// Tạm ẩn dòng này (Ví dụ: // ^ phong cách hoạt hình)`;
+
+    const PLACEHOLDER_CONFIG_B = `💡 Hướng dẫn cấu hình Prompt Video:
+^ Chèn vào ĐẦU câu (Ví dụ: ^ Dùng video tham chiếu [MOTION-01],)
+$ Chèn vào CUỐI câu (Ví dụ: $ góc quay zoom chậm vào mặt)
+// Tạm ẩn dòng này (Ví dụ: // $ tốc độ 60fps)`;
 
     const DEFAULT_ADV_CONFIG = {
-      isEnabled: true,
-      activeTab: 'A',
-      prefixA: '[REF-IMG-01], ',
-      suffixA: ' --ar 9:16 --v 6.0',
-      prefixB: '[MOTION-REF], ',
-      suffixB: ' --camera zoom in',
+      isActiveA: false,
+      configTextA: '',
+      isActiveB: false,
+      configTextB: '',
     };
 
     const loadAdvancedPromptConfig = () => {
@@ -2148,7 +2172,12 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
-            return { ...DEFAULT_ADV_CONFIG, ...parsed };
+            return {
+              isActiveA: typeof parsed.isActiveA === 'boolean' ? parsed.isActiveA : false,
+              configTextA: typeof parsed.configTextA === 'string' ? parsed.configTextA : '',
+              isActiveB: typeof parsed.isActiveB === 'boolean' ? parsed.isActiveB : false,
+              configTextB: typeof parsed.configTextB === 'string' ? parsed.configTextB : '',
+            };
           }
         }
       } catch (e) {
@@ -2157,10 +2186,11 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       return DEFAULT_ADV_CONFIG;
     };
 
-    const formatPromptWithPrefixSuffix = (rawPrompt, prefix = '', suffix = '', type) => {
-      if (!rawPrompt) return '';
-      let cleaned = rawPrompt;
+    function processAdvancedPrompt(original, configText, isActive) {
+      if (!original) return '';
+      if (!isActive || !configText) return original;
 
+      let cleaned = original;
       const hardcodedNegatives = [
         /,\s*no text,\s*no watermark,\s*no logo/gi,
         /,\s*no text,\s*no logo,\s*no watermark/gi,
@@ -2172,15 +2202,38 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       hardcodedNegatives.forEach((pattern) => {
         cleaned = cleaned.replace(pattern, '');
       });
-
       cleaned = cleaned.trim();
-      const p = (prefix || '').trim();
-      const s = (suffix || '').trim();
 
-      const prefixFormatted = p ? (p.endsWith(' ') || p.endsWith(',') ? p : `${p} `) : '';
-      const suffixFormatted = s ? (s.startsWith(' ') || s.startsWith(',') ? s : ` ${s}`) : '';
+      const lines = configText.split('\n');
+      const prefixes = [];
+      const suffixes = [];
 
-      return `${prefixFormatted}${cleaned}${suffixFormatted}`;
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || /^(\/\/|#)/.test(trimmed)) return; // Ignore empty/comments
+
+        if (trimmed.startsWith('^')) {
+          prefixes.push(trimmed.substring(1).trim());
+        } else if (trimmed.startsWith('$')) {
+          suffixes.push(trimmed.substring(1).trim());
+        } else {
+          prefixes.push(trimmed); // Default to prefix
+        }
+      });
+
+      const final = [prefixes.join(' '), cleaned, suffixes.join(' ')]
+        .filter(Boolean)
+        .join(' ');
+
+      return final.trim();
+    }
+
+    const formatPromptWithPrefixSuffix = (rawPrompt, prefix = '', suffix = '') => {
+      if (!rawPrompt) return '';
+      const lines = [];
+      if (prefix) lines.push(`^${prefix.trim()}`);
+      if (suffix) lines.push(`$${suffix.trim()}`);
+      return processAdvancedPrompt(rawPrompt, lines.join('\n'), true);
     };
 
     const AdvancedPromptConfig = ({ config, onChange }) => {
@@ -2194,24 +2247,12 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         }
       }, [config]);
 
-      const handleToggleMaster = (e) => {
-        e.stopPropagation();
-        onChange({ ...config, isEnabled: !config.isEnabled });
-      };
-
-      const handleTabChange = (tab) => {
-        onChange({ ...config, activeTab: tab });
-      };
-
-      const handleFieldChange = (field, value) => {
-        onChange({ ...config, [field]: value });
-      };
-
       return (
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg transition-all">
+        <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl transition-all">
+          {/* Header Accordion */}
           <div
             onClick={() => setIsOpen(!isOpen)}
-            className="p-3.5 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-750/50 transition-colors select-none"
+            className="p-3.5 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-700/40 transition-colors select-none"
           >
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
@@ -2227,130 +2268,107 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto" onClick={(e) => e.stopPropagation()}>
-              <span
-                className={`rounded-md px-2 py-1 text-xs font-semibold border shrink-0 transition-colors ${
-                  config.isEnabled
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                    : 'bg-slate-700/80 text-slate-400 border-slate-600'
-                }`}
-              >
-                {config.isEnabled ? 'Đang BẬT' : 'Đang TẮT'}
-              </span>
-
-              <button
-                type="button"
-                onClick={handleToggleMaster}
-                title={config.isEnabled ? 'Tắt cấu hình nâng cao' : 'Bật cấu hình nâng cao'}
-                className={`p-1 rounded-xl flex items-center border transition-all cursor-pointer ${
-                  config.isEnabled
-                    ? 'bg-emerald-600 border-emerald-400/50 shadow-emerald-500/20'
-                    : 'bg-slate-700 hover:bg-slate-650 border-slate-600'
-                }`}
-              >
-                <div className={`w-8 sm:w-9 h-4 sm:h-4.5 rounded-full p-0.5 transition-colors relative flex items-center ${config.isEnabled ? 'bg-emerald-950/60' : 'bg-slate-900'}`}>
-                  <div
-                    className={`w-3 sm:w-3.5 h-3 sm:h-3.5 rounded-full bg-white transition-transform ${
-                      config.isEnabled ? 'translate-x-4 sm:translate-x-4.5' : 'translate-x-0'
-                    }`}
-                  />
-                </div>
-              </button>
-
-              <div className="text-slate-400 p-1">
-                {isOpen ? <Icons.ChevronUp className="w-4 h-4 sm:w-5 sm:h-5" /> : <Icons.ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />}
-              </div>
+            <div className="text-slate-400 p-1 shrink-0 ml-auto">
+              {isOpen ? <Icons.ChevronUp className="w-4 h-4 sm:w-5 sm:h-5" /> : <Icons.ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />}
             </div>
           </div>
 
+          {/* Expanded Dual-Column Grid Layout */}
           {isOpen && (
-            <div className="p-4 sm:p-5 border-t border-slate-700/80 bg-slate-850 space-y-4">
-              <div className="flex border-b border-slate-700/80 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleTabChange('A')}
-                  className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
-                    config.activeTab === 'A'
-                      ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Icons.ImageIcon className="w-4 h-4" />
-                  <span>🖼️ KHỐI A: TẠO ẢNH</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTabChange('B')}
-                  className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
-                    config.activeTab === 'B'
-                      ? 'border-amber-500 text-amber-400 bg-amber-500/10'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Icons.Video className="w-4 h-4" />
-                  <span>🎬 KHỐI B: VIDEO</span>
-                </button>
+            <div className="p-4 sm:p-5 border-t border-slate-700/80 bg-slate-900/60">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                {/* KHỐI A — CẤU HÌNH PROMPT ẢNH */}
+                <div className="space-y-2 flex flex-col">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 tracking-wider uppercase">
+                    <Icons.ImageIcon className="w-4 h-4 text-indigo-400" />
+                    <span>KHỐI A — CẤU HÌNH PROMPT ẢNH</span>
+                  </div>
+
+                  <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-200">
+                        Nội dung cấu hình
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          KÍCH HOẠT
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onChange({ ...config, isActiveA: !config.isActiveA })}
+                          title={config.isActiveA ? 'Tắt cấu hình khối Ảnh' : 'Bật cấu hình khối Ảnh'}
+                          className={`w-9 h-5 rounded-full p-0.5 transition-colors relative flex items-center cursor-pointer border ${
+                            config.isActiveA
+                              ? 'bg-indigo-600 border-indigo-400 shadow-indigo-500/20'
+                              : 'bg-slate-700 border-slate-600'
+                          }`}
+                        >
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
+                              config.isActiveA ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <textarea
+                      rows={5}
+                      value={config.configTextA}
+                      onChange={(e) => onChange({ ...config, configTextA: e.target.value })}
+                      placeholder={PLACEHOLDER_CONFIG_A}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-3 font-mono text-xs sm:text-sm text-slate-200 placeholder:text-slate-500 placeholder:leading-relaxed focus:outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 min-h-[140px] resize-y whitespace-pre-wrap leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                {/* KHỐI B — CẤU HÌNH PROMPT VIDEO */}
+                <div className="space-y-2 flex flex-col">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 tracking-wider uppercase">
+                    <Icons.Video className="w-4 h-4 text-amber-400" />
+                    <span>KHỐI B — CẤU HÌNH PROMPT VIDEO</span>
+                  </div>
+
+                  <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-200">
+                        Nội dung cấu hình
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">
+                          KÍCH HOẠT
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onChange({ ...config, isActiveB: !config.isActiveB })}
+                          title={config.isActiveB ? 'Tắt cấu hình khối Video' : 'Bật cấu hình khối Video'}
+                          className={`w-9 h-5 rounded-full p-0.5 transition-colors relative flex items-center cursor-pointer border ${
+                            config.isActiveB
+                              ? 'bg-amber-600 border-amber-400 shadow-amber-500/20'
+                              : 'bg-slate-700 border-slate-600'
+                          }`}
+                        >
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
+                              config.isActiveB ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <textarea
+                      rows={5}
+                      value={config.configTextB}
+                      onChange={(e) => onChange({ ...config, configTextB: e.target.value })}
+                      placeholder={PLACEHOLDER_CONFIG_B}
+                      className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-3 font-mono text-xs sm:text-sm text-slate-200 placeholder:text-slate-500 placeholder:leading-relaxed focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/40 min-h-[140px] resize-y whitespace-pre-wrap leading-relaxed"
+                    />
+                  </div>
+                </div>
               </div>
-
-              {config.activeTab === 'A' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-indigo-300 mb-1.5">
-                      Thêm vào ĐẦU Prompt (Tiền tố / Prefix Khối A)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={config.prefixA}
-                      onChange={(e) => handleFieldChange('prefixA', e.target.value)}
-                      placeholder="Ví dụ: [REF-IMG-01], hyper-realistic photo, "
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-indigo-300 mb-1.5">
-                      Thêm vào CUỐI Prompt (Hậu tố / Điều cấm Khối A)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={config.suffixA}
-                      onChange={(e) => handleFieldChange('suffixA', e.target.value)}
-                      placeholder="Ví dụ: , no text, no watermark, --ar 9:16 --v 6.0"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {config.activeTab === 'B' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-amber-300 mb-1.5">
-                      Thêm vào ĐẦU Prompt (Tiền tố / Prefix Khối B)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={config.prefixB}
-                      onChange={(e) => handleFieldChange('prefixB', e.target.value)}
-                      placeholder="Ví dụ: [MOTION-REF], smooth video animation, "
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-amber-300 mb-1.5">
-                      Thêm vào CUỐI Prompt (Hậu tố / Điều cấm Khối B)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={config.suffixB}
-                      onChange={(e) => handleFieldChange('suffixB', e.target.value)}
-                      placeholder="Ví dụ: , no text, no watermark, --camera slow zoom in"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -2458,24 +2476,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       };
 
       const getScenePromptA = (sp) => {
-        if (!sp) return { promptEn: '', promptVi: '' };
-        if (!advConfig.isEnabled) {
-          return { promptEn: sp.initialFramePrompt || '', promptVi: sp.initialFramePromptVi || '' };
-        }
+        if (!sp) return { promptText: '', displayText: '' };
         return {
-          promptEn: formatPromptWithPrefixSuffix(sp.initialFramePrompt || '', advConfig.prefixA, advConfig.suffixA, 'A'),
-          promptVi: formatPromptWithPrefixSuffix(sp.initialFramePromptVi || '', advConfig.prefixA, advConfig.suffixA, 'A'),
+          promptText: processAdvancedPrompt(sp.initialFramePrompt || '', advConfig.configTextA, advConfig.isActiveA),
+          displayText: processAdvancedPrompt(sp.initialFramePromptVi || sp.initialFramePrompt || '', advConfig.configTextA, advConfig.isActiveA),
         };
       };
 
       const getScenePromptB = (sp) => {
-        if (!sp) return { promptEn: '', promptVi: '' };
-        if (!advConfig.isEnabled) {
-          return { promptEn: sp.videoPrompt || '', promptVi: sp.videoPromptVi || '' };
-        }
+        if (!sp) return { promptText: '', displayText: '' };
         return {
-          promptEn: formatPromptWithPrefixSuffix(sp.videoPrompt || '', advConfig.prefixB, advConfig.suffixB, 'B'),
-          promptVi: formatPromptWithPrefixSuffix(sp.videoPromptVi || '', advConfig.prefixB, advConfig.suffixB, 'B'),
+          promptText: processAdvancedPrompt(sp.videoPrompt || '', advConfig.configTextB, advConfig.isActiveB),
+          displayText: processAdvancedPrompt(sp.videoPromptVi || sp.videoPrompt || '', advConfig.configTextB, advConfig.isActiveB),
         };
       };
 
@@ -2483,7 +2495,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         .map((sp, idx) => {
           const label = idx === 0 ? `[Ảnh tham chiếu 1 — mở đầu | ${sp.sceneTitle}]` : `[Ảnh tham chiếu ${sp.sceneNumber} — tiếp nối cảnh trước | ${sp.sceneTitle}]`;
           const promptB = getScenePromptB(sp);
-          return `${label}\n${promptB.promptVi || promptB.promptEn}`;
+          return `${label}\n${promptB.displayText || promptB.promptText}`;
         })
         .join('\n\n');
 
@@ -2491,7 +2503,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         .map((sp, idx) => {
           const label = idx === 0 ? `[Ảnh tham chiếu 1 — mở đầu | ${sp.sceneTitle}]` : `[Ảnh tham chiếu ${sp.sceneNumber} — tiếp nối cảnh trước | ${sp.sceneTitle}]`;
           const promptB = getScenePromptB(sp);
-          return `${label}\n${promptB.promptEn}`;
+          return `${label}\n${promptB.promptText}`;
         })
         .join('\n\n');
 
@@ -2513,7 +2525,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
             <div className="p-3.5 sm:p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2">
                 <Icons.AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>⚠️ Kịch bản ở Tab 1 đã thay đổi — nhấn 'Tạo lại theo kịch bản mới' nếu cần đồng bộ.</span>
+                <span>⚠️ Kịch bản ở Tab 1 đã thay đổi — nội dung dưới đây có thể chưa cập nhật theo, nhấn 'Tạo lại theo kịch bản mới' nếu cần đồng bộ.</span>
               </div>
               <button onClick={onGenerateScenePrompts} disabled={isLoading} className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shrink-0 disabled:opacity-50">
                 {isLoading ? 'Đang tạo lại...' : 'Tạo lại theo kịch bản mới'}
@@ -2637,8 +2649,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       </div>
                       <PromptCard
                         title="Prompt tạo ảnh"
-                        promptText={formattedA.promptEn}
-                        displayText={formattedA.promptVi}
+                        promptText={formattedA.promptText}
+                        displayText={formattedA.displayText}
                         copyLabel="Sao chép prompt ảnh"
                         className="flex-1"
                         lang={projectData.globalLang || 'vi'}
@@ -2653,8 +2665,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       </div>
                       <PromptCard
                         title="Prompt video"
-                        promptText={formattedB.promptEn}
-                        displayText={formattedB.promptVi}
+                        promptText={formattedB.promptText}
+                        displayText={formattedB.displayText}
                         copyLabel="Sao chép prompt video"
                         className="flex-1"
                         lang={projectData.globalLang || 'vi'}
@@ -2704,8 +2716,9 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                   <span>Khối B: Hướng dẫn Prompt Tạo Video</span>
                 </div>
                 <div className="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3.5 sm:p-4 text-xs sm:text-sm text-slate-300 space-y-2 flex-1 flex flex-col justify-center leading-relaxed">
-                  <p>1. Tải tấm ảnh vừa tạo ở Khối A lên công cụ AI Video (Kling / Luma / Runway / Hailuo / Pika).</p>
-                  <p>2. Copy prompt Khối B này dán vào ô Prompt mô tả chuyển động của video.</p>
+                  <p>1. Mở AI Tạo Video (Kling AI, Runway Gen-3, Luma Dream Machine, Vidu...).</p>
+                  <p>2. Tải tấm ảnh ở Khối A lên làm Ảnh gốc (First Frame / Image-to-Video).</p>
+                  <p>3. Copy prompt Khối B này dán vào ô mô tả chuyển động/lời thoại để render ra video hoàn chỉnh.</p>
                 </div>
               </div>
             </div>
