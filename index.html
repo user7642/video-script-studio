@@ -1742,6 +1742,19 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       const [showRatioModal, setShowRatioModal] = useState(false);
       const [includeNameTags, setIncludeNameTags] = useState(projectData.includeNameTags ?? false);
       const [isGroupPromptOutdated, setIsGroupPromptOutdated] = useState(false);
+      const [advConfig, setAdvConfig] = useState(loadAdvancedPromptConfig);
+
+      useEffect(() => {
+        const handleConfigSync = () => {
+          setAdvConfig(loadAdvancedPromptConfig());
+        };
+        window.addEventListener('adv_config_updated', handleConfigSync);
+        window.addEventListener('storage', handleConfigSync);
+        return () => {
+          window.removeEventListener('adv_config_updated', handleConfigSync);
+          window.removeEventListener('storage', handleConfigSync);
+        };
+      }, []);
 
       const [editingCharKey, setEditingCharKey] = useState(null);
       const [editPromptEn, setEditPromptEn] = useState('');
@@ -1928,8 +1941,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                   <div key={idx} className="bg-slate-900/50 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between h-full">
                     <PromptCard
                       title={`Địa điểm: ${envItem.location}`}
-                      promptText={envItem.prompt}
-                      displayText={envItem.promptVi}
+                      promptText={processAdvancedPrompt(envItem.prompt || '', advConfig.configTextA, advConfig.isActiveA)}
+                      displayText={processAdvancedPrompt(envItem.promptVi || envItem.prompt || '', advConfig.configTextA, advConfig.isActiveA)}
                       lang={projectData.globalLang || 'vi'}
                       className="h-full"
                     />
@@ -2025,8 +2038,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
                       ) : (
                         <PromptCard
                           title={`Nhân vật: ${indivItem.characterName}`}
-                          promptText={indivItem.prompt}
-                          displayText={indivItem.promptVi}
+                          promptText={processAdvancedPrompt(indivItem.prompt || '', advConfig.configTextA, advConfig.isActiveA)}
+                          displayText={processAdvancedPrompt(indivItem.promptVi || indivItem.prompt || '', advConfig.configTextA, advConfig.isActiveA)}
                           lang={projectData.globalLang || 'vi'}
                           className="h-full"
                         />
@@ -2072,8 +2085,8 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
 
             <PromptCard
               title="Tất cả nhân vật (Ảnh gộp tham chiếu)"
-              promptText={projectData.characterReferencePrompt || "Đang khởi tạo prompt nhân vật..."}
-              displayText={projectData.characterReferencePromptVi}
+              promptText={processAdvancedPrompt(projectData.characterReferencePrompt || "Đang khởi tạo prompt nhân vật...", advConfig.configTextA, advConfig.isActiveA)}
+              displayText={processAdvancedPrompt(projectData.characterReferencePromptVi || '', advConfig.configTextA, advConfig.isActiveA)}
               lang={projectData.globalLang || 'vi'}
             />
 
@@ -2269,6 +2282,7 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       useEffect(() => {
         try {
           localStorage.setItem(ADVANCED_CONFIG_STORAGE_KEY, JSON.stringify(config));
+          window.dispatchEvent(new Event('adv_config_updated'));
         } catch (e) {
           console.warn('Failed to save advanced prompt config:', e);
         }
@@ -2409,6 +2423,18 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       const [toast, setToast] = useState(null);
       const [advConfig, setAdvConfig] = useState(loadAdvancedPromptConfig);
       const toastTimerRef = useRef(null);
+
+      useEffect(() => {
+        const handleConfigSync = () => {
+          setAdvConfig(loadAdvancedPromptConfig());
+        };
+        window.addEventListener('adv_config_updated', handleConfigSync);
+        window.addEventListener('storage', handleConfigSync);
+        return () => {
+          window.removeEventListener('adv_config_updated', handleConfigSync);
+          window.removeEventListener('storage', handleConfigSync);
+        };
+      }, []);
 
       useEffect(() => {
         return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); };
