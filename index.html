@@ -2472,21 +2472,43 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
       // 1. Remove Audio Language tag
       res = res.replace(/\[\s*Audio\s*Language\s*:[^\]]*\]/gi, '');
 
-      // 2. Remove lead-in verbs + quote (Vietnamese & English patterns)
-      const leadInPatterns = [
-        /(?:trong khi|đồng thời|vừa|liền|rồi)?\s*(?:nói|hỏi|đáp|lên tiếng|thì thầm|kêu lên|thốt lên|than thở|trả lời|mỉm cười nói|nhẹ nhàng nói|hướng về[^:]*nói)\s*:\s*["“«'][^"”»'\n]+["”»']/gi,
-        /(?:while|and|then)?\s*(?:saying|says|said|asking|asks|asked|replying|replies|replied|whispering|whispers|shouting|shouts|exclaiming|exclaims|murmuring|murmurs|calling out)\s*:\s*["“«'][^"”»'\n]+["”»']/gi,
-        /\s*(?:nói|hỏi|đáp|says|asks|replies)\s*:\s*["“«'][^"”»'\n]+["”»']/gi,
+      // 2. Remove quote blocks along with dialogue lead-in phrases
+      const leadInWithQuotePatterns = [
+        // Lead-in actions with speech verbs + quote:
+        // e.g., ", và nói: \"...\"", " rồi nhìn lại anh ấy và nói: \"...\"", " khẽ nói: \"...\"", " rồi đáp lại: \"...\""
+        /(?:,\s*|\s+)(?:và|rồi|liền|đồng thời|vừa)?\s*(?:nói|hỏi|đáp|đáp lại|lên tiếng|thì thầm|kêu lên|thốt lên|than thở|trả lời|mỉm cười nói|nhẹ nhàng nói|khẽ nói|hướng về[^,.:"”»'\n]*nói|quay sang[^,.:"”»'\n]*nói|ngẩng lên[^,.:"”»'\n]*nói|nhìn[^,.:"”»'\n]*nói|nhìn[^,.:"”»'\n]*hỏi)\s*:\s*["“«'][^"”»'\n]+["”»']/gi,
+
+        // English lead-in verbs + quote:
+        // e.g., ", and says: \"...\"", " whispering: \"...\"", " and asks: \"...\""
+        /(?:,\s*|\s+)(?:and|then|while)?\s*(?:saying|says|said|asking|asks|asked|replying|replies|replied|answering|answers|answered|whispering|whispers|whispered|shouting|shouts|exclaiming|exclaims|murmuring|murmurs|calling out)\s*:\s*["“«'][^"”»'\n]+["”»']/gi,
+
+        // Generic lead-in with colon before quote:
+        /\s*(?:nói|hỏi|đáp|đáp lại|trả lời|says|said|asks|asked|replies|replied)\s*:\s*["“«'][^"”»'\n]+["”»']/gi,
       ];
 
-      leadInPatterns.forEach((p) => {
+      leadInWithQuotePatterns.forEach((p) => {
         res = res.replace(p, '');
       });
 
       // 3. Remove any remaining quotes: "..." or '...'
-      res = res.replace(/["“«'][^"”»'\n]{2,}["”»']/g, '');
+      res = res.replace(/["“«'][^"”»'\n]{1,}["”»']/g, '');
 
-      // 4. Clean up punctuation artifacts
+      // 4. Clean dangling/trailing lead-in conjunctions & verbs iteratively
+      let prev = '';
+      while (prev !== res) {
+        prev = res;
+        // Remove trailing speech verbs with colon: "nói:", "hỏi:", "đáp:", "says:", "asks:"
+        res = res.replace(/\b(?:nói|hỏi|đáp|đáp lại|trả lời|lên tiếng|thì thầm|thốt lên|than thở|kêu lên|kể|nhắn nhủ|says?|said|asks?|asked|repl(?:ies|ied)|answers?|answered|whispers?|whispered)\s*:\s*(?=[.,;:!?\n]|\[|$)/gi, '');
+
+        // Remove dangling conjunctions at end of clause / sentence / before tag:
+        // "và", "rồi", "để", "nhưng", "hoặc", "liền", "mà", "and", "then", "to", "but", "or", "so", "while"
+        res = res.replace(/(?:,\s*|\s+)\b(?:và|rồi|để|nhưng|hoặc|liền|mà|cùng|song|and|then|to|but|or|so|while)\s*(?=[.,;:!?\n]|\[|$)/gi, '');
+
+        // Remove colon, dash or comma before tag or period:
+        res = res.replace(/[,;:\-\s]+(?=\.|\?|\!|\[|$)/g, '');
+      }
+
+      // 5. Clean up punctuation artifacts & standardize spacing
       res = res
         .replace(/\s+([.,;:!?])/g, '$1')
         .replace(/([.,;:!?])\s*([.,;:!?])/g, '$1 ')
@@ -2496,7 +2518,14 @@ Nhiệm vụ: Cập nhật kịch bản theo yêu cầu người dùng, giữ ng
         .replace(/\s{2,}/g, ' ')
         .trim();
 
-      return res;
+      // 6. Ensure clean sentence endings before tags or end of string
+      res = res.replace(/([^.!?\s])\s*(\[(?:Camera|Ambient))/gi, '$1. $2');
+
+      if (res && !/[.!?\]]$/.test(res)) {
+        res = `${res}.`;
+      }
+
+      return res.replace(/\s{2,}/g, ' ').trim();
     }
 
     function extractQuotesOnly(text) {
