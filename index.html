@@ -265,15 +265,15 @@ interface ParseResult {
 
 /**
  * Checks if a given text looks like a pre-written SSOT script formatted as:
- * `Cảnh NN - Tên Cảnh` or `Cảnh NN: Tên Cảnh` or `Cảnh N - Tên Cảnh`
+ * `Cảnh NN - Tên Cảnh` or `Cảnh NN: Tên Cảnh` or `Cảnh N - Tên Cảnh` or `Scene N`
  */
 function detectPrewrittenScript(text: string): { isMatch: boolean; count: number } {
   if (!text || text.trim().length < 20) {
     return { isMatch: false, count: 0 };
   }
 
-  // Regex to match lines starting with "Cảnh 01 - ...", "Cảnh 1 - ...", "Cảnh 01: ...", etc.
-  const sceneHeaderRegex = /(?:^|\n)\s*(?:###?\s*)?Cảnh\s*(\d{1,2})\s*[-:–—]\s*([^\n]+)/gi;
+  // Regex to match lines starting with "Cảnh 01 - ...", "Cảnh 1 - ...", "Cảnh 01: ...", "Scene 1 - ...", etc.
+  const sceneHeaderRegex = /(?:^|\n)\s*(?:###?\s*)?(?:Cảnh|Scene)\s*(\d{1,2})\s*[-:–—]\s*([^\n]+)/gi;
   const matches = [...text.matchAll(sceneHeaderRegex)];
 
   if (matches.length >= 1) {
@@ -281,6 +281,274 @@ function detectPrewrittenScript(text: string): { isMatch: boolean; count: number
   }
 
   return { isMatch: false, count: 0 };
+}
+
+// Valid Vietnamese Uppercase and Lowercase definitions
+const VN_UPPER = 'A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴĐ';
+const VN_LOWER = 'a-záàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ';
+
+// Common Vietnamese verbs, adjectives, adverbs, and words that can NEVER be a person's name
+const EXCLUDED_NAME_WORDS = new Set([
+  'cảnh', 'scene', 'khung', 'camera', 'video', 'hình', 'ảnh', 'màn', 'hình', 'góc',
+  'thời', 'gian', 'buổi', 'tấm', 'decal', 'shop', 'tiktok', 'shipper', 'sora', 'kling',
+  'runway', 'luma', 'midjourney', 'flux', 'sản', 'phẩm', 'biểu', 'tượng', 'quay', 'sau',
+  'cùng', 'khi', 'nếu', 'nhưng', 'tuy', 'nhiên', 'đoạn', 'phim', 'bộ', 'lúc', 'tại',
+  'đến', 'vừa', 'đã', 'đang', 'sẽ', 'vì', 'do', 'để', 'với', 'và', 'hay', 'hoặc',
+  'tiêu', 'đề', 'nội', 'dung', 'hành', 'động', 'lời', 'thoại', 'bối', 'cảnh', 'địa', 'điểm',
+  'mô', 'tả', 'khối', 'prompt', 'voiceover', 'audio', 'sound', 'nhạc', 'nền', 'kết', 'thúc',
+  'bắt', 'đầu', 'trước', 'tiên', 'tiếp', 'theo', 'cuối', 'ngày', 'hôm', 'sáng', 'trưa',
+  'chiều', 'tối', 'đêm', 'khuya', 'phút', 'giây', 'giờ', 'đưa', 'cầm', 'ngồi', 'đứng',
+  'chạy', 'bước', 'nhìn', 'nói', 'hỏi', 'trả', 'lời', 'đi', 'lại', 'ra', 'vào', 'thấy',
+  'nghe', 'xem', 'được', 'chỉ', 'dùng', 'mỉm', 'cười', 'nhẹ', 'gật', 'đầu', 'buông',
+  'tỏ', 'tiến', 'thu', 'đóng', 'mở', 'lấy', 'đặt', 'dán', 'chuyển', 'gọi', 'chia', 'sẻ',
+  'muốn', 'mua', 'bán', 'học', 'đọc', 'viết', 'chơi', 'ôn', 'luyện', 'thực', 'hiện',
+  'tạo', 'làm', 'cố', 'gắng', 'thử', 'nhận', 'dạng', 'xuất', 'hiện', 'tan', 'biến',
+  'nhíu', 'mày', 'giật', 'mình', 'rơm', 'rớm', 'im', 'lặng', 'cúi', 'ngơ', 'ngác',
+  'quên', 'mất', 'sai', 'đúng', 'sửa', 'yêu', 'cầu', 'dồn', 'dập', 'lúng', 'túng',
+  'bế', 'tắc', 'buồn', 'bã', 'mệt', 'mỏi', 'tò', 'mò', 'thích', 'thú', 'hào', 'hứng',
+  'rạng', 'rỡ', 'ấm', 'áp', 'hạnh', 'phúc', 'tự', 'hào', 'dõng', 'dạc', 'nhiệt', 'tình',
+  'trôi', 'chảy', 'rộn', 'rã', 'dịu', 'dàng', 'kiên', 'nhẫn', 'bất', 'lực'
+]);
+
+/**
+ * Extract explicit character section if provided in the script
+ * Supports:
+ * NHÂN VẬT:
+ * - Chị Lan: 32 tuổi, người mẹ dịu dàng...
+ * - Bé Linh: 6 tuổi, con gái...
+ */
+function parseExplicitCharacterSection(text: string): Character[] {
+  const explicitSectionRegex = /(?:^|\n)\s*(?:###?\s*)?(?:KHỐI\s*\d+\s*[-:–—]\s*)?(?:DANH SÁCH NHÂN VẬT|NHÂN VẬT|HỒ SƠ NHÂN VẬT|CHARACTERS|CHARACTER PROFILES)\s*[:\n]([\s\S]*?)(?=(?:^|\n)\s*(?:###?\s*)?(?:KHỐI\s*\d+|CẢNH\s*\d+|SCENE\s*\d+|KỊCH BẢN\s*CHI\s*TIẾT|KỊCH BẢN|$))/i;
+  const match = text.match(explicitSectionRegex);
+  if (!match || !match[1]) return [];
+
+  const rawSection = match[1].trim();
+  const lines = rawSection.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const characters: Character[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/^[-•*–—\d\.\)]+\s*/, '').trim();
+    if (!line) continue;
+
+    const colonIdx = line.indexOf(':');
+    if (colonIdx > 0) {
+      const namePart = line.substring(0, colonIdx).trim();
+      const descPart = line.substring(colonIdx + 1).trim();
+
+      let name = namePart;
+      let age = '25-30 tuổi';
+      let role = i === 0 ? 'Chính' : 'Phụ';
+
+      const bracketMatch = namePart.match(/(.*?)\((.*?)\)/);
+      if (bracketMatch) {
+        name = bracketMatch[1].trim();
+        const insideBracket = bracketMatch[2];
+        if (/chính/i.test(insideBracket)) role = 'Chính';
+        if (/phụ/i.test(insideBracket)) role = 'Phụ';
+        const ageInBracket = insideBracket.match(/\d{1,2}\s*(?:tuổi|yo|t)/i);
+        if (ageInBracket) age = ageInBracket[0];
+      }
+
+      const ageMatch = descPart.match(/\d{1,2}\s*(?:tuổi|yo|t)/i);
+      if (ageMatch) age = ageMatch[0];
+
+      if (/vai\s*chính|nhân\s*vật\s*chính/i.test(descPart)) role = 'Chính';
+      if (/vai\s*phụ|nhân\s*vật\s*phụ/i.test(descPart)) role = 'Phụ';
+
+      characters.push({
+        id: `char_${i + 1}_${Date.now()}_${i}`,
+        name,
+        age,
+        role,
+        appearance: descPart || `Người Việt Nam, trang phục phù hợp với nhân vật ${name}, phong thái tự nhiên.`,
+      });
+    }
+  }
+
+  return characters;
+}
+
+/**
+ * Automatically extracts characters from scene narratives and dialogue lines
+ */
+function extractCharactersFromScenes(scenes: Scene[], fullText: string): Character[] {
+  // Check explicit list first
+  const explicit = parseExplicitCharacterSection(fullText);
+  if (explicit.length > 0) {
+    return explicit;
+  }
+
+  // Map to count occurrences and collect context lines for each character candidate
+  const candidateCounts: Map<string, { count: number; scenes: Set<number>; contexts: string[]; honorific: string; baseName: string }> = new Map();
+
+  // Common Vietnamese honorific prefixes
+  const honorificsList = ['Chị', 'Anh', 'Bé', 'Cô', 'Chú', 'Bác', 'Ông', 'Bà', 'Em', 'Thầy', 'Mẹ', 'Ba', 'Bố'];
+  const honorificsPattern = honorificsList.join('|');
+
+  // Strictly match Vietnamese Proper Capitalized Single Word (e.g. "Lan", "Linh", "Tuấn", "Bin")
+  const singleProperWord = `[${VN_UPPER}][${VN_LOWER}]+`;
+  const honorificRegex = new RegExp(`\\b(${honorificsPattern})\\s+(${singleProperWord})\\b`, 'g');
+
+  // Dialogue speakers regex (e.g. `Chị Lan: "..."` or `Lan: "..."`)
+  const dialogueSpeakerRegex = new RegExp(`(?:^|\\n)\\s*(?:(${honorificsPattern})\\s+)?(${singleProperWord})\\s*:\\s*["“]`, 'g');
+
+  // Search across all scene content
+  for (const scene of scenes) {
+    const textToScan = `${scene.title} ${scene.content} ${scene.dialogueAndAction || ''}`;
+
+    // 1. Honorifics matches (e.g. "Chị Lan", "Bé Linh", "Anh Tuấn", "Bé Bin")
+    let hMatch: RegExpExecArray | null;
+    const honRegexCopy = new RegExp(honorificRegex.source, 'g');
+    while ((hMatch = honRegexCopy.exec(textToScan)) !== null) {
+      const honorific = hMatch[1].trim();
+      const baseName = hMatch[2].trim();
+      const fullName = `${honorific} ${baseName}`;
+
+      const lowerBase = baseName.toLowerCase();
+      // Skip if baseName is in exclude list (like "Chị đưa", "Chị nhìn", "Anh đang", "Bé vừa", etc.)
+      if (EXCLUDED_NAME_WORDS.has(lowerBase)) continue;
+
+      if (!candidateCounts.has(fullName)) {
+        candidateCounts.set(fullName, {
+          count: 0,
+          scenes: new Set(),
+          contexts: [],
+          honorific,
+          baseName,
+        });
+      }
+      const item = candidateCounts.get(fullName)!;
+      item.count += 1;
+      item.scenes.add(scene.sceneNumber);
+    }
+
+    // 2. Dialogue Speaker matches
+    let dMatch: RegExpExecArray | null;
+    const diaRegexCopy = new RegExp(dialogueSpeakerRegex.source, 'g');
+    while ((dMatch = diaRegexCopy.exec(textToScan)) !== null) {
+      const honPrefix = dMatch[1] ? dMatch[1].trim() : '';
+      const speakerBase = dMatch[2].trim();
+      const lowerSpeaker = speakerBase.toLowerCase();
+      if (EXCLUDED_NAME_WORDS.has(lowerSpeaker)) continue;
+
+      // Find existing honorific key (e.g. if speaker is "Lan", match with "Chị Lan")
+      let matchedKey = honPrefix ? `${honPrefix} ${speakerBase}` : speakerBase;
+      for (const [key, val] of candidateCounts.entries()) {
+        if (val.baseName.toLowerCase() === lowerSpeaker) {
+          matchedKey = key;
+          break;
+        }
+      }
+
+      if (!candidateCounts.has(matchedKey)) {
+        candidateCounts.set(matchedKey, {
+          count: 0,
+          scenes: new Set(),
+          contexts: [],
+          honorific: honPrefix,
+          baseName: speakerBase,
+        });
+      }
+      const item = candidateCounts.get(matchedKey)!;
+      item.count += 2;
+      item.scenes.add(scene.sceneNumber);
+    }
+  }
+
+  // Filter candidates that appeared at least once with valid names
+  const validCandidates = Array.from(candidateCounts.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .filter(c => c.count >= 1 && !EXCLUDED_NAME_WORDS.has(c.baseName.toLowerCase()) && !EXCLUDED_NAME_WORDS.has(c.name.toLowerCase()));
+
+  // Sort by number of scene appearances and frequency
+  validCandidates.sort((a, b) => b.scenes.size - a.scenes.size || b.count - a.count);
+
+  if (validCandidates.length === 0) {
+    return [
+      {
+        id: `char_1_${Date.now()}`,
+        name: 'Nhân vật chính',
+        age: '25-30 tuổi',
+        role: 'Chính',
+        appearance: 'Người Việt Nam, gương mặt thanh tú, trang phục đời thường hiện đại, thần thái tự nhiên.',
+      },
+    ];
+  }
+
+  // Generate character profiles with smart age, role, and appearance
+  const totalScenes = scenes.length;
+  const characters: Character[] = validCandidates.map((cand, idx) => {
+    const isMain = idx === 0 || (cand.scenes.size >= Math.max(2, Math.ceil(totalScenes * 0.4)));
+    const role = isMain ? 'Chính' : 'Phụ';
+
+    let age = '25-30 tuổi';
+    let appearance = '';
+
+    const hon = cand.honorific.toLowerCase();
+    const nameLower = cand.name.toLowerCase();
+
+    if (hon === 'bé' || nameLower.includes('bé') || nameLower.includes('con')) {
+      age = '5-7 tuổi';
+      appearance = `Bé gái/trai Việt Nam khoảng 5-7 tuổi, gương mặt bầu bĩnh ngây thơ đáng yêu, đôi mắt to tròn sáng lanh lợi, trang phục mặc nhà/học sinh màu sắc tươi sáng, biểu cảm tự nhiên sinh động.`;
+    } else if (hon === 'chị' || hon === 'mẹ' || nameLower.includes('mẹ')) {
+      age = '30-35 tuổi';
+      appearance = `Phụ nữ Việt Nam khoảng 30-35 tuổi, người mẹ trẻ hiền hậu dịu dàng, gương mặt thanh tú ưa nhìn, tóc buộc gọn tự nhiên, trang phục ở nhà trang nhã lịch sự, ánh mắt ấm áp chu đáo.`;
+    } else if (hon === 'anh' || hon === 'ba' || hon === 'bố' || nameLower.includes('bố') || nameLower.includes('ba')) {
+      age = '32-38 tuổi';
+      appearance = `Nam giới Việt Nam khoảng 32-38 tuổi, người bố ấm áp phong thái chững chạc, gương mặt phúc hậu hiền lành, tóc ngắn gọn gàng, trang phục thường ngày tại nhà giản dị, nụ cười hạnh phúc.`;
+    } else if (hon === 'cô') {
+      age = '28-35 tuổi';
+      appearance = `Nữ giới Việt Nam khoảng 28-35 tuổi, phong thái thanh lịch duyên dáng, nét mặt tươi tắn tự tin, trang phục hiện đại nhã nhặn.`;
+    } else if (hon === 'chú' || hon === 'bác') {
+      age = '40-50 tuổi';
+      appearance = `Nam giới Việt Nam khoảng 40-50 tuổi, phong thái đĩnh đạc đáng tin cậy, gương mặt cương nghị hiền từ, trang phục đời thường chỉnh chu.`;
+    } else if (hon === 'ông') {
+      age = '65-72 tuổi';
+      appearance = `Người cao tuổi Việt Nam khoảng 65-72 tuổi, mái tóc điểm bạc, nét mặt đôn hậu phúc hậu, trang phục ở nhà truyền thống thoải mái.`;
+    } else if (hon === 'bà') {
+      age = '60-68 tuổi';
+      appearance = `Phụ nữ lớn tuổi Việt Nam khoảng 60-68 tuổi, gương mặt hiền từ nhân hậu, nụ cười ấm áp, trang phục ở nhà giản dị lịch sự.`;
+    } else if (hon === 'em') {
+      age = '18-22 tuổi';
+      appearance = `Bạn trẻ Việt Nam khoảng 18-22 tuổi, diện mạo trẻ trung năng động, nụ cười rạng rỡ, phong cách thời trang hiện đại thoải mái.`;
+    } else {
+      age = '25-30 tuổi';
+      appearance = `Người Việt Nam khoảng 25-30 tuổi, gương mặt thanh tú, thần thái tự nhiên, trang phục đời thường hiện đại thanh lịch.`;
+    }
+
+    return {
+      id: `char_${idx + 1}_${Date.now()}_${idx}`,
+      name: cand.name,
+      age,
+      role,
+      appearance,
+    };
+  });
+
+  return characters;
+}
+
+/**
+ * Cleans and extracts the primary location from a scene title or text
+ */
+function extractCleanLocation(title: string, content: string): string {
+  // 1. Look for explicit "Bối cảnh: ..." or "Địa điểm: ..."
+  const explicitLocMatch = content.match(/(?:Bối cảnh|Địa điểm|Location)\s*:\s*([^\n\.,]+)/i);
+  if (explicitLocMatch && explicitLocMatch[1].trim()) {
+    return explicitLocMatch[1].trim();
+  }
+
+  // 2. Clean scene title (remove action phrases like "căng thẳng", "tìm giải pháp", "chuẩn bị dán", "và không khí gia đình", "và lời kêu gọi")
+  let cleanLoc = title
+    .replace(/\s*[-:–—].*$/, '') // Remove secondary hyphens
+    .replace(/(?:căng thẳng|tìm giải pháp|chuẩn bị dán|kêu gọi|giới thiệu|mở đầu|kết thúc|cao trào)/gi, '')
+    .trim();
+
+  if (cleanLoc.length < 3) {
+    cleanLoc = title.trim();
+  }
+
+  return cleanLoc;
 }
 
 /**
@@ -301,7 +569,7 @@ function parsePrewrittenScript(text: string): ParseResult {
     };
   }
 
-  const sceneHeaderRegex = /(?:^|\n)\s*(?:###?\s*)?Cảnh\s*(\d{1,2})\s*[-:–—]\s*([^\n]+)/gi;
+  const sceneHeaderRegex = /(?:^|\n)\s*(?:###?\s*)?(?:Cảnh|Scene)\s*(\d{1,2})\s*[-:–—]\s*([^\n]+)/gi;
   const splitIndices: { index: number; sceneNumber: number; title: string; fullMatchLength: number }[] = [];
 
   let match: RegExpExecArray | null;
@@ -321,11 +589,13 @@ function parsePrewrittenScript(text: string): ParseResult {
     const endIndex = i + 1 < splitIndices.length ? splitIndices[i + 1].index : clean.length;
     const sceneBody = clean.substring(startIndex, endIndex).trim();
 
+    const loc = extractCleanLocation(current.title, sceneBody);
+
     scenes.push({
-      id: `scene_${current.sceneNumber || i + 1}_${Date.now()}`,
+      id: `scene_${current.sceneNumber || i + 1}_${Date.now()}_${i}`,
       sceneNumber: current.sceneNumber || i + 1,
       title: current.title,
-      location: current.title, // Initial default location is scene title or extracted
+      location: loc,
       charactersPresent: [],
       content: sceneBody,
       dialogueAndAction: sceneBody,
@@ -337,17 +607,36 @@ function parsePrewrittenScript(text: string): ParseResult {
   let inferredTitle = 'Dự án Kịch bản Video AI';
   if (splitIndices.length > 0 && splitIndices[0].index > 0) {
     const preText = clean.substring(0, splitIndices[0].index).trim();
-    const titleMatch = preText.match(/(?:Tên dự án|Tiêu đề|Dự án|Tên kịch bản)\s*:\s*([^\n]+)/i);
+    const titleMatch = preText.match(/(?:Tên dự án|Tiêu đề|Dự án|Tên kịch bản|Title)\s*:\s*([^\n]+)/i);
     if (titleMatch) {
       inferredTitle = titleMatch[1].trim();
     } else {
       const firstLine = preText.split('\n')[0].replace(/^#+\s*/, '').trim();
-      if (firstLine.length > 3 && firstLine.length < 80) {
+      if (firstLine.length > 3 && firstLine.length < 80 && !/(?:nhân vật|characters|bối cảnh)/i.test(firstLine)) {
         inferredTitle = firstLine;
       }
     }
   } else if (scenes.length > 0) {
     inferredTitle = `Kịch bản: ${scenes[0].title}`;
+  }
+
+  // Extract all characters (explicit or implicit from narrative and dialogues)
+  const characters = extractCharactersFromScenes(scenes, clean);
+
+  // Link characters to each scene's charactersPresent list
+  for (const scene of scenes) {
+    const textToSearch = `${scene.title} ${scene.content}`.toLowerCase();
+    const present = characters
+      .filter((char) => {
+        const charNameLower = char.name.toLowerCase();
+        // Check full name or base name (e.g. "Chị Lan" or "Lan")
+        const baseName = char.name.replace(/^(?:Chị|Anh|Bé|Cô|Chú|Bác|Ông|Bà|Em|Thầy|Mẹ|Ba|Bố)\s+/i, '').toLowerCase();
+        return textToSearch.includes(charNameLower) || (baseName.length > 1 && textToSearch.includes(baseName));
+      })
+      .map((c) => c.name);
+
+    // If none matched explicitly, fall back to main characters
+    scene.charactersPresent = present.length > 0 ? present : characters.slice(0, 2).map((c) => c.name);
   }
 
   // Re-stitch structured narrative
@@ -360,18 +649,11 @@ function parsePrewrittenScript(text: string): ParseResult {
     sceneCount: scenes.length,
     title: inferredTitle,
     scenes,
-    characters: [
-      {
-        id: `char_1_${Date.now()}`,
-        name: 'Nhân vật chính',
-        age: '25 tuổi',
-        role: 'Chính',
-        appearance: 'Người Việt Nam, gương mặt thanh tú, trang phục đời thường hiện đại, thần thái tự nhiên.',
-      },
-    ],
+    characters,
     scriptNarrative,
   };
 }
+
 
     // PROMPT UTILS
 
@@ -847,6 +1129,17 @@ function processAdvancedPrompt(original: string, configText: string, isActive: b
   return final.trim();
 }
 
+function stripStyleAndAspectRatio(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[,\.]?\s*Style:\s*[^,\.]*(?:,\s*--ar\s*\d+:\d+)?/gi, '')
+    .replace(/[,\.]?\s*Phong cách:\s*[^,\.]*(?:,\s*--ar\s*\d+:\d+)?/gi, '')
+    .replace(/[,\.]?\s*--ar\s*\d+:\d+/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,\.:])/g, '$1')
+    .trim();
+}
+
 function formatVideoPromptWithAttributes(params: {
   rawPrompt: string;
   sceneContext: any;
@@ -857,6 +1150,7 @@ function formatVideoPromptWithAttributes(params: {
   if (!rawPrompt) return '';
 
   let body = cleanExistingVideoAttributeTags(rawPrompt);
+  body = stripStyleAndAspectRatio(body);
   body = standardizeDialogueQuotes(body);
 
   const tags: string[] = [];
@@ -1444,9 +1738,9 @@ Với MỖI cảnh trong danh sách, xuất đủ 2 khối:
    - Mô tả tuần tự hành động, chuyển động máy quay/nhân vật, biến đổi biểu cảm, VÀ LỜI THOẠI LỒNG TỰ NHIÊN đúng vị trí diễn ra (ví dụ: says: "..." hoặc while saying: "..."). Lấy đúng lời thoại có trong kịch bản cảnh đó.
    - Bắt đầu thẳng vào hành động. Không mô tả lại ngoại hình hay bối cảnh đã có ở ảnh khởi đầu.
    - Dùng nhãn trung tính nếu cần: 'ảnh tham chiếu nhân vật', 'ảnh tham chiếu môi trường', 'ảnh tham chiếu sản phẩm'.
-   - Kết thúc chuỗi bằng: "Style: ${style}, --ar ${aspectRatio}".
-   - 'videoPrompt': Tiếng Anh chuẩn.
-   - 'videoPromptVi': Bản dịch tiếng Việt sát nghĩa.
+   - Kết thúc tự nhiên ở câu mô tả hành động / lời thoại cuối cùng của cảnh. TUYỆT ĐỐI KHÔNG thêm thông số phong cách ("Style: ...") hay tỉ lệ khung hình ("--ar ...") vào đuôi Khối 2 (vì Image-to-Video đã kế thừa hoàn toàn từ Khối 1).
+   - 'videoPrompt': Tiếng Anh chuẩn (kết thúc tự nhiên, KHÔNG có 'Style: ...' hay '--ar ...').
+   - 'videoPromptVi': Bản dịch tiếng Việt sát nghĩa (kết thúc tự nhiên, KHÔNG có 'Phong cách: ...' hay '--ar ...').
 
 3. TRƯỜNG LOCATION & CAMERA / AMBIENT:
    - 'location': Lấy đúng tên bối cảnh tương ứng.
@@ -1465,8 +1759,8 @@ Với MỖI cảnh trong danh sách, xuất đủ 2 khối:
       "charactersPresent": ["Tên nhân vật"],
       "initialFramePrompt": "English initial frame prompt. Style: ${style}, --ar ${aspectRatio}",
       "initialFramePromptVi": "Bản dịch tiếng Việt...",
-      "videoPrompt": "English detailed continuous video motion prompt with dialogue. Style: ${style}, --ar ${aspectRatio}",
-      "videoPromptVi": "Bản dịch tiếng Việt chi tiết của Khối 2...",
+      "videoPrompt": "English detailed continuous video motion prompt with dialogue ending naturally without style or aspect ratio flags.",
+      "videoPromptVi": "Bản dịch tiếng Việt chi tiết của Khối 2 kết thúc tự nhiên ở hành động hoặc lời thoại...",
       "cameraShot": "Medium shot, smooth tracking",
       "cameraShotVi": "Trung cảnh, tracking mượt",
       "ambientAudio": "Natural ambient coffee shop chatter",
@@ -1481,7 +1775,26 @@ Với MỖI cảnh trong danh sách, xuất đủ 2 khối:
       customApiKey,
       jsonMode: true
     });
-    return JSON.parse(text);
+    const data = JSON.parse(text);
+    if (data.scenePrompts && Array.isArray(data.scenePrompts)) {
+      const cleanVideoEnding = (str: string) => {
+        if (!str) return '';
+        return str
+          .replace(/[,.]?s*Style:s*[^,.]*(?:,s*--ars*d+:d+)?/gi, '')
+          .replace(/[,.]?s*Phong cách:s*[^,.]*(?:,s*--ars*d+:d+)?/gi, '')
+          .replace(/[,.]?s*--ars*d+:d+/gi, '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/\s+([,.:])/g, '$1')
+          .trim();
+      };
+
+      data.scenePrompts = data.scenePrompts.map((sp: any) => ({
+        ...sp,
+        videoPrompt: cleanVideoEnding(sp.videoPrompt || ''),
+        videoPromptVi: cleanVideoEnding(sp.videoPromptVi || ''),
+      }));
+    }
+    return data;
   } catch (e) {
     console.warn('Fallback to local scene prompt generation:', e);
     return {
