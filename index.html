@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Studio Kịch Bản & Prompt Video AI (Standalone)</title>
+  <!-- Favicon SVG Embedded Directly -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0%25'%20y1='0%25'%20x2='100%25'%20y2='100%25'%3E%3Cstop%20offset='0%25'%20stop-color='%236366F1'/%3E%3Cstop%20offset='100%25'%20stop-color='%234338CA'/%3E%3C/defs%3E%3Crect%20width='100'%20height='100'%20rx='24'%20fill='url(%23g)'/%3E%3Cpath%20d='M28%2032h44v36H28z'%20fill='none'%20stroke='%23ffffff'%20stroke-width='6'%20stroke-linejoin='round'/%3E%3Cpath%20d='M44%2042l18%208-18%208V42z'%20fill='%23ffffff'/%3E%3Cpath%20d='M76%2024l3-7%207-3-7-3-3-7-3%207-7%203%207%203z'%20fill='%23FBBF24'/%3E%3C/svg%3E" />
   <!-- Tailwind CSS Play CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -65,29 +67,26 @@
         });
       }
 
-      var iconDefs = {"Sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"></path><path d=\"M20 2v4\"></path><path d=\"M22 4h-4\"></path><circle cx=\"4\" cy=\"20\" r=\"2\"></circle>","Settings":"<path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>","Key":"<path d=\"m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4\"></path><path d=\"m21 2-9.6 9.6\"></path><circle cx=\"7.5\" cy=\"15.5\" r=\"5.5\"></circle>","RefreshCw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"></path><path d=\"M8 16H3v5\"></path>","Layers":"<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"></path><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"></path><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"></path>","Check":"<path d=\"M20 6 9 17l-5-5\"></path>","X":"<path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path>","ShieldAlert":"<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"M12 8v4\"></path><path d=\"M12 16h.01\"></path>","Cpu":"<path d=\"M12 20v2\"></path><path d=\"M12 2v2\"></path><path d=\"M17 20v2\"></path><path d=\"M17 2v2\"></path><path d=\"M2 12h2\"></path><path d=\"M2 17h2\"></path><path d=\"M2 7h2\"></path><path d=\"M20 12h2\"></path><path d=\"M20 17h2\"></path><path d=\"M20 7h2\"></path><path d=\"M7 20v2\"></path><path d=\"M7 2v2\"></path><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\"></rect><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\"></rect>","FileText":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 9H8\"></path><path d=\"M16 13H8\"></path><path d=\"M16 17H8\"></path>","UserCheck":"<path d=\"m16 11 2 2 4-4\"></path><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle>","Film":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M7 3v18\"></path><path d=\"M3 7.5h4\"></path><path d=\"M3 12h18\"></path><path d=\"M3 16.5h4\"></path><path d=\"M17 3v18\"></path><path d=\"M17 7.5h4\"></path><path d=\"M17 16.5h4\"></path>","ArrowRight":"<path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path>","ArrowLeft":"<path d=\"m12 19-7-7 7-7\"></path><path d=\"M19 12H5\"></path>","RotateCcw":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path>","Copy":"<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"></rect><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"></path>","Globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\"></path><path d=\"M2 12h20\"></path>","Sliders":"<path d=\"M10 8h4\"></path><path d=\"M12 21v-9\"></path><path d=\"M12 8V3\"></path><path d=\"M17 16h4\"></path><path d=\"M19 12V3\"></path><path d=\"M19 21v-5\"></path><path d=\"M3 14h4\"></path><path d=\"M5 10V3\"></path><path d=\"M5 21v-7\"></path>","Eye":"<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>","EyeOff":"<path d=\"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49\"></path><path d=\"M14.084 14.158a3 3 0 0 1-4.242-4.242\"></path><path d=\"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143\"></path><path d=\"m2 2 20 20\"></path>","Lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"></path><path d=\"M9 18h6\"></path><path d=\"M10 22h4\"></path>","ChevronDown":"<path d=\"m6 9 6 6 6-6\"></path>","ChevronUp":"<path d=\"m18 15-6-6-6 6\"></path>","AlertCircle":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"></line><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"></line>","Video":"<path d=\"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5\"></path><rect x=\"2\" y=\"6\" width=\"14\" height=\"12\" rx=\"2\"></rect>","Plus":"<path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path>","Trash2":"<path d=\"M10 11v6\"></path><path d=\"M14 11v6\"></path><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"></path><path d=\"M3 6h18\"></path><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"></path>","Pencil":"<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"></path><path d=\"m15 5 4 4\"></path>","User":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"></path><circle cx=\"12\" cy=\"7\" r=\"4\"></circle>","MapPin":"<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"></path><circle cx=\"12\" cy=\"10\" r=\"3\"></circle>","Send":"<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"></path><path d=\"m21.854 2.147-10.94 10.939\"></path>","Users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><path d=\"M16 3.128a4 4 0 0 1 0 7.744\"></path><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle>","Maximize":"<path d=\"M8 3H5a2 2 0 0 0-2 2v3\"></path><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\"></path><path d=\"M3 16v3a2 2 0 0 0 2 2h3\"></path><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\"></path>","Palette":"<path d=\"M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z\"></path><circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"></circle>","Tag":"<path d=\"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z\"></path><circle cx=\"7.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"></circle>","Image":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"></rect><circle cx=\"9\" cy=\"9\" r=\"2\"></circle><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"></path>","Eraser":"<path d=\"M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21\"></path><path d=\"m5.082 11.09 8.828 8.828\"></path>","CheckCircle":"<path d=\"M21.801 10A10 10 0 1 1 17 3.335\"></path><path d=\"m9 11 3 3L22 4\"></path>","CheckCircle2":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"m9 12 2 2 4-4\"></path>","Dices":"<rect width=\"12\" height=\"12\" x=\"2\" y=\"10\" rx=\"2\" ry=\"2\"></rect><path d=\"m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6\"></path><path d=\"M6 18h.01\"></path><path d=\"M10 14h.01\"></path><path d=\"M15 6h.01\"></path><path d=\"M18 9h.01\"></path>","MessageSquare":"<path d=\"M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z\"></path>","Upload":"<path d=\"M12 3v12\"></path><path d=\"m17 8-5-5-5 5\"></path><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path>","Volume2":"<path d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z\"></path><path d=\"M16 9a5 5 0 0 1 0 6\"></path><path d=\"M19.364 18.364a9 9 0 0 0 0-12.728\"></path>","VolumeX":"<path d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z\"></path><line x1=\"22\" x2=\"16\" y1=\"9\" y2=\"15\"></line><line x1=\"16\" x2=\"22\" y1=\"9\" y2=\"15\"></line>"};
+      var iconDefs = {"Sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\"></path><path d=\"M20 2v4\"></path><path d=\"M22 4h-4\"></path><circle cx=\"4\" cy=\"20\" r=\"2\"></circle>","Settings":"<path d=\"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>","Key":"<path d=\"m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4\"></path><path d=\"m21 2-9.6 9.6\"></path><circle cx=\"7.5\" cy=\"15.5\" r=\"5.5\"></circle>","RefreshCw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"></path><path d=\"M8 16H3v5\"></path>","Layers":"<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z\"></path><path d=\"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12\"></path><path d=\"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17\"></path>","Check":"<path d=\"M20 6 9 17l-5-5\"></path>","X":"<path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path>","ShieldAlert":"<path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"M12 8v4\"></path><path d=\"M12 16h.01\"></path>","Cpu":"<path d=\"M12 20v2\"></path><path d=\"M12 2v2\"></path><path d=\"M17 20v2\"></path><path d=\"M17 2v2\"></path><path d=\"M2 12h2\"></path><path d=\"M2 17h2\"></path><path d=\"M2 7h2\"></path><path d=\"M20 12h2\"></path><path d=\"M20 17h2\"></path><path d=\"M20 7h2\"></path><path d=\"M7 20v2\"></path><path d=\"M7 2v2\"></path><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\"></rect><rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\"></rect>","FileText":"<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"></path><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M10 9H8\"></path><path d=\"M16 13H8\"></path><path d=\"M16 17H8\"></path>","UserCheck":"<path d=\"m16 11 2 2 4-4\"></path><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle>","Film":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"></rect><path d=\"M7 3v18\"></path><path d=\"M3 7.5h4\"></path><path d=\"M3 12h18\"></path><path d=\"M3 16.5h4\"></path><path d=\"M17 3v18\"></path><path d=\"M17 7.5h4\"></path><path d=\"M17 16.5h4\"></path>","ArrowRight":"<path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path>","ArrowLeft":"<path d=\"m12 19-7-7 7-7\"></path><path d=\"M19 12H5\"></path>","RotateCcw":"<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path>","Copy":"<rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"></rect><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"></path>","Globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\"></path><path d=\"M2 12h20\"></path>","Sliders":"<path d=\"M10 8h4\"></path><path d=\"M12 21v-9\"></path><path d=\"M12 8V3\"></path><path d=\"M17 16h4\"></path><path d=\"M19 12V3\"></path><path d=\"M19 21v-5\"></path><path d=\"M3 14h4\"></path><path d=\"M5 10V3\"></path><path d=\"M5 21v-7\"></path>","Eye":"<path d=\"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle>","EyeOff":"<path d=\"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49\"></path><path d=\"M14.084 14.158a3 3 0 0 1-4.242-4.242\"></path><path d=\"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143\"></path><path d=\"m2 2 20 20\"></path>","Lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"></path><path d=\"M9 18h6\"></path><path d=\"M10 22h4\"></path>","ChevronDown":"<path d=\"m6 9 6 6 6-6\"></path>","ChevronUp":"<path d=\"m18 15-6-6-6 6\"></path>","AlertCircle":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"></line><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"></line>","Video":"<path d=\"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5\"></path><rect x=\"2\" y=\"6\" width=\"14\" height=\"12\" rx=\"2\"></rect>","Plus":"<path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path>","Trash2":"<path d=\"M10 11v6\"></path><path d=\"M14 11v6\"></path><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"></path><path d=\"M3 6h18\"></path><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"></path>","Pencil":"<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"></path><path d=\"m15 5 4 4\"></path>","User":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"></path><circle cx=\"12\" cy=\"7\" r=\"4\"></circle>","MapPin":"<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"></path><circle cx=\"12\" cy=\"10\" r=\"3\"></circle>","Send":"<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\"></path><path d=\"m21.854 2.147-10.94 10.939\"></path>","Users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"></path><path d=\"M16 3.128a4 4 0 0 1 0 7.744\"></path><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"></path><circle cx=\"9\" cy=\"7\" r=\"4\"></circle>","Maximize":"<path d=\"M8 3H5a2 2 0 0 0-2 2v3\"></path><path d=\"M21 8V5a2 2 0 0 0-2-2h-3\"></path><path d=\"M3 16v3a2 2 0 0 0 2 2h3\"></path><path d=\"M16 21h3a2 2 0 0 0 2-2v-3\"></path>","Palette":"<path d=\"M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z\"></path><circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\"></circle><circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"></circle>","Tag":"<path d=\"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z\"></path><circle cx=\"7.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"></circle>","Image":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"></rect><circle cx=\"9\" cy=\"9\" r=\"2\"></circle><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"></path>","Eraser":"<path d=\"M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21\"></path><path d=\"m5.082 11.09 8.828 8.828\"></path>","Package":"<path d=\"M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z\"></path><path d=\"M12 22V12\"></path><polyline points=\"3.29 7 12 12 20.71 7\"></polyline><path d=\"m7.5 4.27 9 5.15\"></path>","CheckCircle":"<path d=\"M21.801 10A10 10 0 1 1 17 3.335\"></path><path d=\"m9 11 3 3L22 4\"></path>","CheckCircle2":"<circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"m9 12 2 2 4-4\"></path>","Dices":"<rect width=\"12\" height=\"12\" x=\"2\" y=\"10\" rx=\"2\" ry=\"2\"></rect><path d=\"m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6\"></path><path d=\"M6 18h.01\"></path><path d=\"M10 14h.01\"></path><path d=\"M15 6h.01\"></path><path d=\"M18 9h.01\"></path>","MessageSquare":"<path d=\"M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z\"></path>","Upload":"<path d=\"M12 3v12\"></path><path d=\"m17 8-5-5-5 5\"></path><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path>","Volume2":"<path d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z\"></path><path d=\"M16 9a5 5 0 0 1 0 6\"></path><path d=\"M19.364 18.364a9 9 0 0 0 0-12.728\"></path>","VolumeX":"<path d=\"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z\"></path><line x1=\"22\" x2=\"16\" y1=\"9\" y2=\"15\"></line><line x1=\"16\" x2=\"22\" y1=\"9\" y2=\"15\"></line>","ImageIcon":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"></rect><circle cx=\"9\" cy=\"9\" r=\"2\"></circle><path d=\"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\"></path>"};
       var rawIcons = {};
       for (var name in iconDefs) {
         rawIcons[name] = createIcon(iconDefs[name]);
       }
       rawIcons.ImageIcon = rawIcons.Image;
       
+      var defaultIcon = createIcon('<circle cx="12" cy="12" r="10"></circle>');
+
       // Safe proxy to prevent any undefined icon from crashing
       var icons = new Proxy(rawIcons, {
         get: function(target, prop) {
           if (prop in target) return target[prop];
           if (typeof prop === 'string' && prop !== '__esModule') {
-            return createIcon('<circle cx="12" cy="12" r="10"></circle>');
+            return defaultIcon;
           }
           return undefined;
         }
       });
       window.LucideIcons = icons;
-      
-      // Bind every icon directly to window so any component can access them as globals without error
-      for (var k in rawIcons) {
-        window[k] = rawIcons[k];
-      }
     })();
   </script>
 
@@ -118,7 +117,7 @@
       Cpu, FileText, UserCheck, Film, ArrowRight, ArrowLeft, RotateCcw,
       Copy, Globe, Sliders, Eye, EyeOff, Lightbulb, ChevronDown, ChevronUp,
       AlertCircle, Video, Plus, Trash2, Pencil, User, MapPin, Send,
-      Users, Maximize, Palette, Tag, Image: ImageIcon, Eraser,
+      Users, Maximize, Palette, Tag, Image: ImageIcon, Eraser, Package,
       CheckCircle, CheckCircle2, Dices, MessageSquare, Upload, Volume2, VolumeX
     } = window.LucideIcons || {};
     // REACT ERROR BOUNDARY
@@ -1617,12 +1616,16 @@ async function generateReferencesApi(params: {
   scenes: any[];
   style: string;
   aspectRatio: string;
+  hasProduct?: boolean;
+  productImage?: string | null;
 }): Promise<{
   individualCharacterPrompts: any[];
   environmentPrompts: any[];
+  productDescription?: string;
+  productDescriptionVi?: string;
 }> {
   const customApiKey = getStoredApiKey();
-  const { characters, scenes, style, aspectRatio } = params;
+  const { characters, scenes, style, aspectRatio, hasProduct, productImage } = params;
 
   if (!customApiKey) {
     const localRef = generateAllReferencePrompts(characters, scenes, style, aspectRatio);
@@ -1638,6 +1641,7 @@ async function generateReferencesApi(params: {
 - Danh sách cảnh (Scene Cards): ${JSON.stringify(scenes, null, 2)}
 - Phong cách hình ảnh: "${style || 'Hiện thực'}"
 - Tỉ lệ khung hình: "${aspectRatio || '9:16'}"
+- Sản phẩm đính kèm: ${hasProduct ? "Có hình ảnh sản phẩm đính kèm. Hãy nhìn vào ảnh để trích xuất mô tả chi tiết, khách quan về sản phẩm (kiểu dáng, màu sắc, chi tiết, logo nếu có)." : "Không có."}
 
 ### QUY TẮC BẮT BUỘC THEO QUY TRÌNH V4 (NHÓM 2):
 1. ĐỊNH DẠNG SONG NGỮ ANH - VIỆT:
@@ -1659,6 +1663,10 @@ async function generateReferencesApi(params: {
    - TUYỆT ĐỐI KHÔNG có người hoặc động vật (empty environment, strictly no people, no animals).
    - Kết thúc chuỗi tiếng Anh: "Style: ${style}, --ar ${aspectRatio}".
 
+${hasProduct ? `5. MÔ TẢ SẢN PHẨM (NẾU CÓ):
+   - 'productDescription': Đoạn mô tả tiếng Anh chi tiết, khách quan về sản phẩm trích xuất từ ảnh thật (kiểu dáng, màu sắc, chi tiết thương hiệu).
+   - 'productDescriptionVi': Bản dịch tiếng Việt tương ứng.` : ""}
+
 ### CẤU TRÚC JSON ĐẦU RA:
 {
   "individualCharacterPrompts": [
@@ -1676,12 +1684,15 @@ async function generateReferencesApi(params: {
       "prompt": "English environment prompt without people or animals. Style: ${style}, --ar ${aspectRatio}",
       "promptVi": "Bản dịch tiếng Việt..."
     }
-  ]
+  ]${hasProduct ? `,
+  "productDescription": "English product visual description...",
+  "productDescriptionVi": "Mô tả sản phẩm tiếng Việt..."` : ""}
 }`;
 
   try {
     const text = await callGeminiDirect({
       prompt: promptText,
+      imageBase64: (hasProduct && productImage) ? productImage : null,
       customApiKey,
       jsonMode: true
     });
@@ -1704,11 +1715,13 @@ async function generateScenePromptsApi(params: {
   aspectRatio: string;
   characterReferencePrompt?: string;
   environmentPrompts?: any[];
+  productDescription?: string;
+  productDescriptionVi?: string;
 }): Promise<{
   scenePrompts: any[];
 }> {
   const customApiKey = getStoredApiKey();
-  const { scenes, characters, style, aspectRatio, characterReferencePrompt, environmentPrompts } = params;
+  const { scenes, characters, style, aspectRatio, characterReferencePrompt, environmentPrompts, productDescription, productDescriptionVi } = params;
 
   if (!customApiKey) {
     return {
@@ -1724,12 +1737,13 @@ async function generateScenePromptsApi(params: {
 - Tỉ lệ khung hình: "${aspectRatio || '9:16'}"
 - Prompt tham chiếu nhân vật gộp: "${characterReferencePrompt || ''}"
 - Danh sách prompt môi trường: ${JSON.stringify(environmentPrompts, null, 2)}
+${productDescription ? `- Mô tả sản phẩm thực tế tham chiếu: "${productDescription}" (Bản dịch: "${productDescriptionVi || ''}")` : ""}
 
 ### QUY TẮC SINH PROMPT SẢN XUẤT TỪNG CẢNH THEO V4 (NHÓM 3):
 Với MỖI cảnh trong danh sách, xuất đủ 2 khối:
 
 1. KHỐI 1 — PROMPT ẢNH KHỞI ĐẦU (INITIAL FRAME PROMPT):
-   - Cấu trúc: [cỡ cảnh: close-up shot / medium shot / wide shot] + tên từng nhân vật (kèm 1-2 đặc điểm nhận diện/trang phục, người Việt Nam) + hành động/tư thế ban đầu + tại bối cảnh nào + biểu cảm/trạng thái chung. Style: ${style}, --ar ${aspectRatio}
+   - Cấu trúc: [cỡ cảnh: close-up shot / medium shot / wide shot] + tên từng nhân vật (kèm 1-2 đặc điểm nhận diện/trang phục, người Việt Nam) + hành động/tư thế ban đầu + tại bối cảnh nào + biểu cảm/trạng thái chung${productDescription ? ' + nếu cảnh có sản phẩm, lồng ghép sản phẩm tự nhiên theo mô tả sản phẩm' : ''}. Style: ${style}, --ar ${aspectRatio}
    - 'initialFramePrompt': Tiếng Anh chuẩn.
    - 'initialFramePromptVi': Bản dịch tiếng Việt sát nghĩa.
 
@@ -1738,6 +1752,7 @@ Với MỖI cảnh trong danh sách, xuất đủ 2 khối:
    - Mô tả tuần tự hành động, chuyển động máy quay/nhân vật, biến đổi biểu cảm, VÀ LỜI THOẠI LỒNG TỰ NHIÊN đúng vị trí diễn ra (ví dụ: says: "..." hoặc while saying: "..."). Lấy đúng lời thoại có trong kịch bản cảnh đó.
    - Bắt đầu thẳng vào hành động. Không mô tả lại ngoại hình hay bối cảnh đã có ở ảnh khởi đầu.
    - Dùng nhãn trung tính nếu cần: 'ảnh tham chiếu nhân vật', 'ảnh tham chiếu môi trường', 'ảnh tham chiếu sản phẩm'.
+   - Nếu cảnh có nhân vật tương tác với sản phẩm (cầm, chỉ, giới thiệu, sử dụng...), mô tả hành động mượt mà, chính xác đặc điểm sản phẩm.
    - Kết thúc tự nhiên ở câu mô tả hành động / lời thoại cuối cùng của cảnh. TUYỆT ĐỐI KHÔNG thêm thông số phong cách ("Style: ...") hay tỉ lệ khung hình ("--ar ...") vào đuôi Khối 2 (vì Image-to-Video đã kế thừa hoàn toàn từ Khối 1).
    - 'videoPrompt': Tiếng Anh chuẩn (kết thúc tự nhiên, KHÔNG có 'Style: ...' hay '--ar ...').
    - 'videoPromptVi': Bản dịch tiếng Việt sát nghĩa (kết thúc tự nhiên, KHÔNG có 'Phong cách: ...' hay '--ar ...').
@@ -3612,6 +3627,21 @@ const Step2ReferencePrompts: React.FC<Step2ReferencePromptsProps> = ({
                 />
               </div>
             ))}
+
+            {/* Product Card placed cleanly alongside environment prompts */}
+            {(projectData.productDescription || projectData.productDescriptionVi) && (
+              <div className="backdrop-blur-md bg-white/[0.02] border border-indigo-500/30 hover:border-indigo-400/50 rounded-xl p-4 flex flex-col justify-between h-full transition-all">
+                <PromptCard
+                  title="Sản phẩm tham chiếu (Product Reference)"
+                  badge="Sản phẩm"
+                  badgeColor="indigo"
+                  promptText={String(projectData.productDescription || '')}
+                  displayText={String(projectData.productDescriptionVi || projectData.productDescription || '')}
+                  lang={projectData.globalLang || 'vi'}
+                  className="h-full"
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="p-4 text-center text-slate-400 text-xs bg-black/30 backdrop-blur-md rounded-xl border border-white/[0.08]">
@@ -4059,6 +4089,18 @@ const Step3ScenePrompts: React.FC<Step3ScenePromptsProps> = ({
     if (ok) triggerCopyFeedback(itemKey);
   };
 
+  const handleCopyProductPrompt = async (itemKey: string) => {
+    const globalLang = projectData.globalLang || 'vi';
+    const textToCopy =
+      globalLang === 'vi'
+        ? projectData.productDescriptionVi || projectData.productDescription
+        : projectData.productDescription;
+
+    if (!textToCopy) return;
+    const ok = await copyTextToClipboard(textToCopy);
+    if (ok) triggerCopyFeedback(itemKey);
+  };
+
   const getScenePromptA = (sp: ScenePrompt) => {
     return {
       promptText: processAdvancedPrompt(sp.initialFramePrompt || '', advConfig.configTextA, advConfig.isActiveA),
@@ -4356,6 +4398,34 @@ const Step3ScenePrompts: React.FC<Step3ScenePromptsProps> = ({
                               </span>
                             );
                           })}
+
+                        {/* Product reference copy */}
+                        {(projectData.productDescription || projectData.productDescriptionVi) && (
+                          <span className="inline-flex items-center gap-0.5 shrink-0">
+                            {sp.charactersPresent && sp.charactersPresent.length > 0 && (
+                              <span className="text-slate-500 mr-0.5 font-normal select-none">,</span>
+                            )}
+                            <span className="font-semibold text-amber-300 inline-flex items-center gap-1">
+                              <Package className="w-3 h-3 text-amber-400" />
+                              <span>Sản phẩm</span>
+                            </span>
+                            <button
+                              onClick={() => handleCopyProductPrompt(`prod_${idx}`)}
+                              title="Sao chép prompt mô tả sản phẩm thực tế"
+                              className={`p-1 rounded-md transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                                copiedItemKey === `prod_${idx}`
+                                  ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/50'
+                                  : 'text-amber-400 hover:text-amber-200 hover:bg-white/10'
+                              }`}
+                            >
+                              {copiedItemKey === `prod_${idx}` ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5 shrink-0" />
+                              )}
+                            </button>
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -4879,6 +4949,8 @@ function App() {
         scenes: projectData.scenes || [],
         style: targetStyle,
         aspectRatio: targetRatio,
+        hasProduct: hasProductFlag,
+        productImage: productInfo?.dataUrl || null,
       });
 
       const groupRes = buildGroupCharacterPrompt({
@@ -4896,6 +4968,8 @@ function App() {
         characterReferencePromptVi: groupRes.promptVi || '',
         individualCharacterPrompts: data.individualCharacterPrompts || [],
         environmentPrompts: data.environmentPrompts || [],
+        productDescription: data.productDescription || prev.productDescription || '',
+        productDescriptionVi: data.productDescriptionVi || prev.productDescriptionVi || '',
       }));
 
       setIsScriptModifiedAfterGenerate(false);
@@ -4930,6 +5004,8 @@ function App() {
         aspectRatio: projectData.aspectRatio,
         characterReferencePrompt: projectData.characterReferencePrompt,
         environmentPrompts: projectData.environmentPrompts,
+        productDescription: projectData.productDescription,
+        productDescriptionVi: projectData.productDescriptionVi,
       });
 
       setProjectData((prev) => ({
