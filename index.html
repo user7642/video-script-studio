@@ -1419,6 +1419,65 @@ function saveApiKey(key: string): void {
   }
 }
 
+function cleanAndParseJson(rawText: string, fallback?: any): any {
+  if (!rawText || typeof rawText !== 'string') {
+    if (fallback !== undefined) return fallback;
+    throw new Error('Dữ liệu trả về trống.');
+  }
+
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^`{3}(?:json)?s*/i, '').replace(/s*`{3}$/i, '').trim();
+
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  let startIdx = -1;
+  let endIdx = -1;
+
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    startIdx = firstBrace;
+    endIdx = cleaned.lastIndexOf('}');
+  } else if (firstBracket !== -1) {
+    startIdx = firstBracket;
+    endIdx = cleaned.lastIndexOf(']');
+  }
+
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    cleaned = cleaned.substring(startIdx, endIdx + 1);
+  }
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (err1: any) {
+    let repaired = cleaned;
+    repaired = repaired.replace(//*[sS]*?*/|([^:]|^)//.*$/gm, '$1');
+    repaired = repaired.replace(/,s*([}]])/g, '$1');
+    repaired = repaired.replace(/([{,]s*)([a-zA-Z0-9_$]+)s*:/g, '$1"$2":');
+    repaired = repaired.replace(/([{,]s*)'([^']+)'s*:/g, '$1"$2":');
+
+    try {
+      return JSON.parse(repaired);
+    } catch (err2) {
+      try {
+        const fn = new Function('return (' + cleaned + ')');
+        const result = fn();
+        if (result && typeof result === 'object') return result;
+      } catch (err3) {
+        try {
+          const fn = new Function('return (' + repaired + ')');
+          const result = fn();
+          if (result && typeof result === 'object') return result;
+        } catch (err4) {
+          if (fallback !== undefined) return fallback;
+          throw new Error('Không thể phân tích dữ liệu JSON: ' + (err1 ? err1.message : ''));
+        }
+      }
+    }
+  }
+
+  if (fallback !== undefined) return fallback;
+  throw new Error('Không thể phân tích dữ liệu JSON.');
+}
+
 // Direct Gemini API Caller
 async function callGeminiDirect(params: {
   prompt: string;
@@ -1460,7 +1519,7 @@ async function callGeminiDirect(params: {
 
   const models = model ? [model, ...fallbackModels.filter(m => m !== model)] : fallbackModels;
 
-  const REQUEST_TIMEOUT_MS = 12000;
+  const REQUEST_TIMEOUT_MS = 15000;
 
   let lastError: any = null;
   for (const targetModel of models) {
@@ -1514,12 +1573,8 @@ Trả về định dạng JSON:
     jsonMode: true
   });
 
-  try {
-    const parsed = JSON.parse(text);
-    return parsed.idea || '';
-  } catch (e) {
-    return text.replace(/[\{\}"]/g, '').trim();
-  }
+  const parsed = cleanAndParseJson(text, { idea: '' });
+  return parsed.idea || '';
 }
 
 // 2. Generate Full Script
@@ -1580,7 +1635,7 @@ Trả về JSON chuẩn.`;
     jsonMode: true
   });
 
-  const data = JSON.parse(text);
+  const data = cleanAndParseJson(text, { title: "Dự án Video", characters: [], scenes: [], scriptNarrative: "" });
 
   if (data.characters) {
     data.characters = data.characters.map((c: any, index: number) => ({
@@ -1639,7 +1694,7 @@ Mỗi lời thoại nằm trong dấu ngoặc kép "...".`;
     jsonMode: true
   });
 
-  return JSON.parse(text);
+  return cleanAndParseJson(text, currentData);
 }
 
 // 4. Refine Single Scene
@@ -1684,7 +1739,7 @@ Quy tắc:
     jsonMode: true
   });
 
-  return JSON.parse(text);
+  return cleanAndParseJson(text, { updatedContent: sceneContent });
 }
 
 // Local Fallback Generators
@@ -1831,7 +1886,7 @@ ${hasProduct ? `5. MÔ TẢ SẢN PHẨM (NẾU CÓ):
       customApiKey,
       jsonMode: true
     });
-    return JSON.parse(text);
+    return cleanAndParseJson(text);
   } catch (e) {
     console.warn('Fallback to local reference generation:', e);
     const localRef = generateAllReferencePrompts(characters, scenes, style, aspectRatio);
@@ -1925,7 +1980,7 @@ Với MỖI cảnh trong danh sách, xuất đủ 2 khối:
       customApiKey,
       jsonMode: true
     });
-    const data = JSON.parse(text);
+    const data = cleanAndParseJson(text);
     if (data.scenePrompts && Array.isArray(data.scenePrompts)) {
       const cleanVideoEnding = (str: string) => {
         if (!str) return '';
