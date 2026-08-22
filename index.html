@@ -1218,19 +1218,23 @@ function formatStoryboardPrompt(params: {
   lang?: 'vi' | 'en';
 }): string {
   const { projectData, lang = 'vi' } = params;
-  const title = (projectData.title || '').trim() || (lang === 'vi' ? 'Dự án Kịch bản Video AI' : 'AI Video Script Project');
-  const characters = projectData.characters || [];
-  const scenes = projectData.scenes || [];
+  const title = (projectData?.title ? String(projectData.title).trim() : '') || (lang === 'vi' ? 'Dự án Kịch bản Video AI' : 'AI Video Script Project');
+  const characters = projectData?.characters || [];
+  const scenes = projectData?.scenes || [];
 
   if (lang === 'vi') {
     let charLines: string[] = [];
     if (characters.length > 0) {
       charLines = characters.map((c, i) => {
-        const ageStr = c.age ? c.age.trim() : '';
-        const roleStr = c.role ? c.role.trim() : (i === 0 ? 'Chính' : 'Phụ');
+        const ageStr = c.age != null ? String(c.age).trim() : '';
+        const roleStr = c.role != null ? String(c.role).trim() : (i === 0 ? 'Chính' : 'Phụ');
         const meta = [ageStr, roleStr].filter(Boolean).join(', ');
-        const nameWithMeta = meta ? `${c.name} (${meta})` : c.name;
-        const details = [c.appearance, c.personality].map((s) => (s || '').trim()).filter(Boolean).join('. ');
+        const charName = c.name ? String(c.name).trim() : `Nhân vật ${i + 1}`;
+        const nameWithMeta = meta ? `${charName} (${meta})` : charName;
+        const details = [c.appearance, c.personality]
+          .map((s) => (s != null ? String(s).trim() : ''))
+          .filter(Boolean)
+          .join('. ');
         return `- ${nameWithMeta}: ${details}`;
       });
     }
@@ -1239,8 +1243,10 @@ function formatStoryboardPrompt(params: {
     if (scenes.length > 0) {
       sceneLines = scenes.map((s, idx) => {
         const num = (s.sceneNumber || idx + 1).toString().padStart(2, '0');
-        const content = (s.content || s.dialogueAndAction || s.summary || '').trim();
-        return `Cảnh ${num} - ${s.title}\n${content}`;
+        const sceneTitle = s.title ? String(s.title).trim() : `Cảnh ${num}`;
+        const rawContent = s.content || s.dialogueAndAction || s.summary || '';
+        const content = String(rawContent).trim();
+        return `Cảnh ${num} - ${sceneTitle}\n${content}`;
       });
     }
 
@@ -1250,13 +1256,17 @@ function formatStoryboardPrompt(params: {
     let charLines: string[] = [];
     if (characters.length > 0) {
       charLines = characters.map((c, i) => {
-        const ageStr = c.age ? c.age.trim() : '';
-        let roleStr = c.role ? c.role.trim() : (i === 0 ? 'Main' : 'Supporting');
+        const ageStr = c.age != null ? String(c.age).trim() : '';
+        let roleStr = c.role != null ? String(c.role).trim() : (i === 0 ? 'Main' : 'Supporting');
         if (roleStr.toLowerCase() === 'chính') roleStr = 'Main';
         if (roleStr.toLowerCase() === 'phụ') roleStr = 'Supporting';
         const meta = [ageStr, roleStr].filter(Boolean).join(', ');
-        const nameWithMeta = meta ? `${c.name} (${meta})` : c.name;
-        const details = [c.appearance, c.personality].map((s) => (s || '').trim()).filter(Boolean).join('. ');
+        const charName = c.name ? String(c.name).trim() : `Character ${i + 1}`;
+        const nameWithMeta = meta ? `${charName} (${meta})` : charName;
+        const details = [c.appearance, c.personality]
+          .map((s) => (s != null ? String(s).trim() : ''))
+          .filter(Boolean)
+          .join('. ');
         return `- ${nameWithMeta}: ${details}`;
       });
     }
@@ -1265,8 +1275,10 @@ function formatStoryboardPrompt(params: {
     if (scenes.length > 0) {
       sceneLines = scenes.map((s, idx) => {
         const num = (s.sceneNumber || idx + 1).toString().padStart(2, '0');
-        const content = (s.content || s.dialogueAndAction || s.summary || '').trim();
-        return `Scene ${num} - ${s.title}\n${content}`;
+        const sceneTitle = s.title ? String(s.title).trim() : `Scene ${num}`;
+        const rawContent = s.content || s.dialogueAndAction || s.summary || '';
+        const content = String(rawContent).trim();
+        return `Scene ${num} - ${sceneTitle}\n${content}`;
       });
     }
 
@@ -1673,6 +1685,64 @@ Quy tắc:
   });
 
   return JSON.parse(text);
+}
+
+// Local Fallback Generators
+function generateAllReferencePrompts(characters: any[] = [], scenes: any[] = [], style: string = 'Hiện thực', aspectRatio: string = '9:16') {
+  const individualCharacterPrompts = (characters || []).map((c: any, idx: number) => {
+    const rawName = c.name || `Nhân vật ${idx + 1}`;
+    const appearance = c.appearance || '';
+    const personality = c.personality || '';
+    const age = c.age ? `${c.age} tuổi, ` : '';
+    const role = c.role || (idx === 0 ? 'chính' : 'phụ');
+    return {
+      characterId: c.id || `char_${idx + 1}`,
+      characterName: rawName,
+      prompt: `${rawName}, ${age}Vietnamese, ${role} role, ${appearance}${personality ? ', ' + personality : ''}, standing in A-pose, full front view, facing camera, full body character reference sheet from head to toe, neutral relaxed expression, plain seamless solid white studio background. Style: ${style}, --ar ${aspectRatio}`,
+      promptVi: `${rawName}, ${age}người Việt Nam, vai trò ${role}, ${appearance}${personality ? ', ' + personality : ''}, tư thế A-pose toàn thân từ đầu đến chân, phông nền trắng trơn studio. Phong cách: ${style}, --ar ${aspectRatio}`
+    };
+  });
+
+  const locations: string[] = [];
+  (scenes || []).forEach((s: any) => {
+    const loc = (s.location || '').trim();
+    if (loc && !locations.includes(loc)) {
+      locations.push(loc);
+    }
+  });
+  if (locations.length === 0) locations.push('Không gian tự nhiên');
+
+  const environmentPrompts = locations.map((loc, idx) => ({
+    id: `env_${idx + 1}`,
+    location: loc,
+    prompt: `Wide angle establishing shot of ${loc}, empty environment, strictly no people, no animals, clean cinematic lighting, photorealistic. Style: ${style}, --ar ${aspectRatio}`,
+    promptVi: `Góc rộng không gian ${loc}, bối cảnh trống hoàn toàn không có người hay động vật, ánh sáng điện ảnh chân thực. Phong cách: ${style}, --ar ${aspectRatio}`
+  }));
+
+  return { individualCharacterPrompts, environmentPrompts };
+}
+
+function generateAllScenePrompts(scenes: any[] = [], characters: any[] = [], style: string = 'Hiện thực', aspectRatio: string = '9:16') {
+  return (scenes || []).map((s: any, idx: number) => {
+    const num = s.sceneNumber || idx + 1;
+    const title = s.title || `Cảnh ${num}`;
+    const loc = s.location || 'Địa điểm';
+    const content = s.dialogueAndAction || s.content || s.summary || '';
+    return {
+      sceneNumber: num,
+      sceneTitle: title,
+      location: loc,
+      charactersPresent: Array.isArray(s.characters) && s.characters.length > 0 ? s.characters : (characters || []).map((c: any) => c.name),
+      initialFramePrompt: `Medium shot, ${title} at ${loc}, cinematic lighting, highly detailed. Style: ${style}, --ar ${aspectRatio}`,
+      initialFramePromptVi: `Trung cảnh, ${title} tại ${loc}, ánh sáng điện ảnh, chi tiết chân thực. Phong cách: ${style}, --ar ${aspectRatio}`,
+      videoPrompt: content,
+      videoPromptVi: content,
+      cameraShot: 'Medium shot, smooth cinematic motion',
+      cameraShotVi: 'Trung cảnh, chuyển động điện ảnh mượt mà',
+      ambientAudio: `Natural ambient environmental sound of ${loc}`,
+      ambientAudioVi: `Âm thanh môi trường tự nhiên tại ${loc}`
+    };
+  });
 }
 
 // 5. Generate References
